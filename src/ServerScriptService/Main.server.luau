@@ -20,6 +20,7 @@ local SERVICE_ORDER: { ModuleScript } = {
 	Services.DataService,
 	Services.EconomyService,
 	Services.TruckService,
+	Services.ConeService,
 	Services.CustomerService,
 	Services.PetService,
 	Services.QuestService,

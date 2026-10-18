@@ -15,12 +15,14 @@ local RunService = game:GetService("RunService")
 local FOLDER_NAME = "Remotes"
 local WAIT_TIMEOUT = 30
 
-export type EventName = "DataPatch"
+export type EventName = "DataPatch" | "OrderResult" | "Notify"
 export type FunctionName = "GetSnapshot"
 
 -- Add new names to BOTH the type above and the list below.
 local EVENT_NAMES: { EventName } = {
 	"DataPatch", -- Server -> Client: (seq: number, path: {string}, value: any)
+	"OrderResult", -- Server -> Client: (position: Vector3, coins: number, correct: boolean)
+	"Notify", -- Server -> Client: (message: string, kind: "Info" | "Error")
 }
 
 local FUNCTION_NAMES: { FunctionName } = {

@@ -33,6 +33,36 @@ function Formulas.upgradeValue(statId: GameData.UpgradeStatId, level: number): n
 	return upgrade.Values[math.clamp(level, 1, upgrade.MaxLevel)]
 end
 
+export type OrderPayoutInput = {
+	ScoopValue: number, -- sum of CoinValue for every scoop in the order
+	Customer: GameData.CustomerDef,
+	Neighborhood: GameData.NeighborhoodDef,
+	Truck: GameData.TruckDef,
+	TipBonus: number, -- from the Tip Bonus upgrade (0.1 = +10%)
+	PatienceFraction: number, -- 1 = served instantly, 0 = at the last second
+	Correct: boolean,
+}
+
+--[[
+	Coins for one served order, BEFORE the player's global multipliers
+	(rebirths, pets, passes - applied by EconomyService.awardCoins).
+	Returns base, tip. Wrong orders pay a fraction of base and no tip.
+]]
+function Formulas.orderPayout(input: OrderPayoutInput): (number, number)
+	local base = input.ScoopValue * input.Customer.PayMultiplier * input.Neighborhood.PayMultiplier
+	if not input.Correct then
+		return base * GameConfig.Orders.WrongOrderPayFraction, 0
+	end
+	local tip = base
+		* GameConfig.Orders.MaxTipFraction
+		* math.clamp(input.PatienceFraction, 0, 1)
+		* input.Customer.TipMultiplier
+		* input.Truck.TipMultiplier
+		* input.Neighborhood.TipMultiplier
+		* (1 + input.TipBonus)
+	return base, tip
+end
+
 -- Coin multiplier from the combo meter. streak = correct orders in a row.
 function Formulas.comboMultiplier(streak: number): number
 	local config = GameConfig.Combo

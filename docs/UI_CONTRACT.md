@@ -39,9 +39,52 @@ DataController.Changed:Connect(function(path, value) ... end)
 |------|------|-----------|-----------|---------|------------|-------|
 | `GetSnapshot` | RemoteFunction | Client → Server | none | `{ Seq: number, Data: PlayerData }`, or `nil` if not loaded / rate-limited | 3 per 10 s | 1 |
 | `DataPatch` | RemoteEvent | Server → Client | `seq: number, path: {string \| number}, value: any` | — | — | 1 |
+| `OrderResult` | RemoteEvent | Server → Client | `position: Vector3, coins: number, correct: boolean` (a customer just paid; coins already include multipliers) | — | — | 2 |
+| `Notify` | RemoteEvent | Server → Client | `message: string, kind: "Info" \| "Error"` (short toast text) | — | — | 2 |
 
-*Later stages add rows here, for example `RequestScoop`, `BuyUpgrade(statId)`,
+*Later stages add rows here, for example `BuyUpgrade(statId)`,
 `UnlockFlavor(flavorId)` and `HatchEgg(eggId, count)`.*
+
+## World interactions (no remotes)
+
+Scooping and serving use **ProximityPrompts**, not remotes. The server handles
+`Triggered`, checks ownership, distance, cooldowns and capacity, and ignores everyone
+except the owner.
+
+| Prompt | Where | Who can use it | Server checks |
+|--------|-------|----------------|---------------|
+| `ScoopPrompt` ("Scoop", key E, hold) | `Workspace.Trucks.Truck_<UserId>.Dispenser` | Truck owner | Within range, scoop cooldown (hold time × 0.85), cone not full |
+| `ServePrompt` ("Serve", key F) | `Workspace.Customers.Customer.Root` | Customer's owner | Customer is waiting, within 16 studs, cone not empty |
+
+The client hides other players' prompts locally. On touch-only devices it turns the scoop
+prompt's hold into a tap.
+
+## Replicated attributes (live, not saved)
+
+**On the local Player** (set by ConeService):
+
+| Attribute | Type | Meaning |
+|-----------|------|---------|
+| `ConeScoops` | number | Scoops currently on the cone |
+| `ConeCapacity` | number | Max scoops (Storage upgrade) |
+| `ConeFlavors` | string | Comma-separated flavor ids, bottom to top, e.g. `"Vanilla,Vanilla"` |
+
+**On each truck model** in `Workspace.Trucks`: `OwnerUserId`, `OwnerName`, `Tier`,
+`CounterZ`, `StandZ` and `Width`. The dispenser prompt also has a `ScoopSeconds` attribute.
+
+**On each customer model** in `Workspace.Customers`:
+
+| Attribute | Type | Meaning |
+|-----------|------|---------|
+| `OwnerUserId` | number | The player this customer belongs to |
+| `CustomerName`, `CustomerType` | string | Display name; key into `Shared/Data/Customers` |
+| `State` | string | `"Arriving"`, `"Waiting"` or `"Leaving"` |
+| `OrderFlavor`, `OrderScoops` | string, number | The order (set before `State` becomes `"Waiting"`) |
+| `PatienceTotal`, `PatienceEnd` | number | Seconds of patience, and the `Workspace:GetServerTimeNow()` time it runs out |
+| `Mood` | string | `"Happy"`, `"Sad"` or `"Angry"`, set when leaving |
+
+Customer models are pooled: a model leaving `Workspace.Customers` and coming back later is a
+new customer.
 
 ## PlayerData shape (DataVersion 1)
 

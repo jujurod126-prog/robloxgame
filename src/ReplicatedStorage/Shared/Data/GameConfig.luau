@@ -26,6 +26,33 @@ local GameConfig = {
 		Neighborhood = "SunnySidewalk",
 	},
 
+	Trucks = {
+		-- Each player's truck parks on its own lot. Lot 1 is at LotOrigin, then
+		-- alternating right/left: +1, -1, +2, -2 ... times LotSpacing along X.
+		LotOrigin = Vector3.new(0, 0, 60),
+		LotSpacing = 45,
+		MaxLots = 12,
+		-- Trucks face -Z: customers line up on that side, the player stands behind (+Z).
+		CounterGap = 3.5, -- studs between the truck's front face and the customer line
+		StandGap = 3, -- studs behind the truck where the player appears
+	},
+
+	Scooping = {
+		PromptDistance = 10, -- how close you must be to the dispenser
+		-- Server accepts a scoop after this fraction of the scoop time (allows for lag).
+		CooldownTolerance = 0.85,
+	},
+
+	CustomerFlow = {
+		ArriveDelayMin = 0.5, -- seconds before a new customer arrives at a free spot
+		ArriveDelayMax = 1.5,
+		WalkSpeed = 12, -- studs per second
+		SpawnDistance = 24, -- how far in front of the truck customers appear
+		SpotSpacing = 5.5, -- studs between counter spots
+		ServeDistance = 16, -- server-side max distance between player and customer
+		PromptDistance = 14,
+	},
+
 	Combo = {
 		StartsAt = 5, -- correct orders in a row before the multiplier kicks in
 		StepMultiplier = 0.1, -- x1.1 at 5, x1.2 at 6, ...
