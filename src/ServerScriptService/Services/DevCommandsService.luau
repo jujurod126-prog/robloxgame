@@ -1,0 +1,78 @@
+--!strict
+--[[
+	DevCommandsService (STUDIO ONLY)
+	Chat commands for testing. They do nothing in a live server.
+
+	/data            print your saved data to the Output window
+	/coins <amount>  add Coins (negative to remove)
+	/gems <amount>   add Gems
+	/wipe            reset your data to a brand-new player
+
+	Requires the place to use TextChatService (the default for new places).
+]]
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TextChatService = game:GetService("TextChatService")
+
+local DataService = require(script.Parent.DataService)
+
+local DevCommandsService = {}
+
+local function addCommand(name: string, handler: (player: Player, argument: string?) -> ())
+	local command = Instance.new("TextChatCommand")
+	command.Name = "Dev_" .. name
+	command.PrimaryAlias = "/" .. name
+	command.Triggered:Connect(function(textSource: TextSource, text: string)
+		local player = Players:GetPlayerByUserId(textSource.UserId)
+		if player then
+			handler(player, string.match(text, "^%S+%s+(.+)$"))
+		end
+	end)
+	command.Parent = TextChatService
+end
+
+local function parseAmount(argument: string?): number?
+	local amount = tonumber(argument)
+	if amount == nil or amount ~= amount or math.abs(amount) == math.huge then
+		return nil
+	end
+	return math.floor(amount)
+end
+
+function DevCommandsService.Init() end
+
+function DevCommandsService.Start()
+	if not RunService:IsStudio() then
+		return
+	end
+
+	addCommand("data", function(player)
+		local data = DataService.getData(player)
+		print(`[Dev] {player.Name}'s data:\n{HttpService:JSONEncode(data)}`)
+	end)
+
+	addCommand("coins", function(player, argument)
+		local amount = parseAmount(argument)
+		if amount then
+			print(`[Dev] {player.Name} Coins -> {DataService.increment(player, { "Coins" }, amount)}`)
+		end
+	end)
+
+	addCommand("gems", function(player, argument)
+		local amount = parseAmount(argument)
+		if amount then
+			print(`[Dev] {player.Name} Gems -> {DataService.increment(player, { "Gems" }, amount)}`)
+		end
+	end)
+
+	addCommand("wipe", function(player)
+		DataService.resetData(player)
+		print(`[Dev] {player.Name}'s data was reset`)
+	end)
+
+	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /wipe")
+end
+
+return DevCommandsService

@@ -1,0 +1,17 @@
+# Rojo / Studio build output
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+
+# Selene generated standard library
+roblox.yml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
