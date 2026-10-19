@@ -54,8 +54,10 @@ local content = Cleaner.new()
 local selectedTab = TABS[1]
 local refresh: (() -> ())? = nil
 
-local function request(remoteName: Remotes.FunctionName, ...: any)
+-- Sends a request; the button stays busy ("...") until the server answers.
+local function request(button: TextButton, remoteName: Remotes.FunctionName, ...: any)
 	local args = table.pack(...)
+	UILib.setBusy(button, true)
 	task.spawn(function()
 		local remote = Remotes.func(remoteName)
 		local ok, result = pcall(remote.InvokeServer, remote, table.unpack(args, 1, args.n))
@@ -63,6 +65,10 @@ local function request(remoteName: Remotes.FunctionName, ...: any)
 			NotificationController.toast(result.Message, if result.Ok then "Success" else "Error")
 		else
 			NotificationController.toast("Something went wrong. Try again!", "Error")
+		end
+		UILib.setBusy(button, false)
+		if refresh then
+			refresh()
 		end
 	end)
 end
@@ -122,7 +128,7 @@ local function buildRebirthTab(holder: Frame): () -> ()
 	content:add(UILib.onActivated(button, function()
 		if os.clock() < armedUntil then
 			armedUntil = 0
-			request("Rebirth")
+			request(button, "Rebirth")
 		else
 			armedUntil = os.clock() + CONFIRM_SECONDS
 			UILib.setButtonText(button, "Tap again to confirm!")
@@ -233,7 +239,7 @@ local function buildSkillCard(parent: Instance, skill: GameData.SkillDef): () ->
 		ZIndex = 3,
 	})
 	content:add(UILib.onActivated(button, function()
-		request("BuySkill", skill.Id)
+		request(button, "BuySkill", skill.Id)
 	end))
 
 	return function()
@@ -305,14 +311,14 @@ local function open()
 	local holder = content:add(UILib.createFrame(body, {
 		Name = "TabContent",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0, 0.16),
-		Size = UDim2.fromScale(1, 0.84),
+		Position = UDim2.new(0, 0, 0, Theme.Sizes.TabBar + 8), -- below the tab buttons
+		Size = UDim2.new(1, 0, 1, -(Theme.Sizes.TabBar + 8)),
 	}))
 	local tabs = UILib.createTabs(body, TABS, function(name)
 		selectedTab = name
 		buildTab(name, holder)
 	end)
-	tabs.Frame.Size = UDim2.fromScale(1, 0.12)
+	tabs.Frame.Size = UDim2.new(1, 0, 0, Theme.Sizes.TabBar)
 	content:add(tabs.Frame)
 	tabs.select(selectedTab)
 

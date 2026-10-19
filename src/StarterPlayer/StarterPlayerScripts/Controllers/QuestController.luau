@@ -48,8 +48,7 @@ local function serverNow(): number
 end
 
 local function claim(button: TextButton, remoteName: Remotes.FunctionName, argument: any)
-	UILib.setButtonStyle(button, "Disabled")
-	UILib.setButtonText(button, "...")
+	UILib.setBusy(button, true)
 	task.spawn(function()
 		local remote = Remotes.func(remoteName)
 		local ok, result = pcall(remote.InvokeServer, remote, argument)
@@ -58,6 +57,7 @@ local function claim(button: TextButton, remoteName: Remotes.FunctionName, argum
 		else
 			NotificationController.toast("Something went wrong. Try again!", "Error")
 		end
+		UILib.setBusy(button, false)
 		if refresh then
 			refresh()
 		end
@@ -135,7 +135,7 @@ local function buildDailyTab(holder: Frame): () -> ()
 		alive = false
 	end)
 	task.spawn(function()
-		while alive do
+		while alive and timer.Parent do -- stops when the window closes or the tab changes
 			timer.Text = `New quests in {NumberFormat.duration(QuestRules.secondsUntilReset(serverNow()))}`
 			task.wait(1)
 		end
@@ -208,14 +208,14 @@ local function open()
 	local holder = content:add(UILib.createFrame(body, {
 		Name = "TabContent",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0, 0.16),
-		Size = UDim2.fromScale(1, 0.84),
+		Position = UDim2.new(0, 0, 0, Theme.Sizes.TabBar + 8), -- below the tab buttons
+		Size = UDim2.new(1, 0, 1, -(Theme.Sizes.TabBar + 8)),
 	}))
 	local tabs = UILib.createTabs(body, TABS, function(name)
 		selectedTab = name
 		buildTab(name, holder)
 	end)
-	tabs.Frame.Size = UDim2.fromScale(1, 0.12)
+	tabs.Frame.Size = UDim2.new(1, 0, 0, Theme.Sizes.TabBar)
 	content:add(tabs.Frame)
 	tabs.select(selectedTab)
 

@@ -195,14 +195,14 @@ local function open()
 	local holder = content:add(UILib.createFrame(body, {
 		Name = "TabContent",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0, 0.16),
-		Size = UDim2.fromScale(1, 0.84),
+		Position = UDim2.new(0, 0, 0, Theme.Sizes.TabBar + 8), -- below the tab buttons
+		Size = UDim2.new(1, 0, 1, -(Theme.Sizes.TabBar + 8)),
 	}))
 	local tabs = UILib.createTabs(body, TABS, function(name)
 		selectedTab = name
 		buildTab(name, holder)
 	end)
-	tabs.Frame.Size = UDim2.fromScale(1, 0.12)
+	tabs.Frame.Size = UDim2.new(1, 0, 0, Theme.Sizes.TabBar)
 	content:add(tabs.Frame)
 	tabs.select(selectedTab)
 

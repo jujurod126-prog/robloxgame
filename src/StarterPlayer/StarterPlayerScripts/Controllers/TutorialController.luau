@@ -22,6 +22,7 @@ local Remotes = require(Shared.Modules.Remotes)
 
 local UI = script.Parent.Parent.UI
 local Cleaner = require(UI.Cleaner)
+local HudLayout = require(UI.HudLayout)
 local Theme = require(UI.Theme)
 local UILib = require(UI.UILib)
 local WindowManager = require(UI.WindowManager)
@@ -145,7 +146,7 @@ local function pointAtWorld(target: Instance)
 	local arrow = UILib.createLabel(billboard, { Text = "▼", TextColor3 = Colors.Coin })
 	arrow.TextStrokeColor3 = Colors.Outline
 	arrow.TextStrokeTransparency = 0
-	billboard.Parent = gui
+	billboard.Parent = player:WaitForChild("PlayerGui") -- not inside a ScreenGui, or it won't render
 	local bounce =
 		pointer:add(TweenService:Create(billboard, BOUNCE, { StudsOffsetWorldSpace = Vector3.new(0, 5.5, 0) }))
 	bounce:Play()
@@ -277,6 +278,10 @@ local function createTip()
 		finish(true)
 	end)
 	tipFrame = outer
+	-- Just under the Coins / Gems counters, whatever size they are.
+	HudLayout.watch(function()
+		outer.Position = UDim2.new(0.035, 0, 0, HudLayout.get("TopLeft") - gui.AbsolutePosition.Y + 8)
+	end)
 end
 
 function TutorialController.Init()

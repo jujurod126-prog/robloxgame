@@ -30,6 +30,7 @@ local RebirthRules = require(Shared.Modules.RebirthRules)
 local ShopRules = require(Shared.Modules.ShopRules)
 
 local UI = script.Parent.Parent.UI
+local HudLayout = require(UI.HudLayout)
 local Theme = require(UI.Theme)
 local UILib = require(UI.UILib)
 local WindowManager = require(UI.WindowManager)
@@ -163,6 +164,12 @@ local function createCurrencies()
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0.1, 0)
 	layout.Parent = holder
+	local function report()
+		HudLayout.set("TopLeft", holder.AbsolutePosition.Y + holder.AbsoluteSize.Y)
+	end
+	holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(report)
+	holder:GetPropertyChangedSignal("AbsolutePosition"):Connect(report)
+	report()
 
 	DataController.observe("Coins", createCounter(holder, "Coins", Assets.ICON_COIN, Colors.Coin, 1))
 	DataController.observe("Gems", createCounter(holder, "Gems", Assets.ICON_GEM, Colors.Gem, 2))
@@ -229,30 +236,69 @@ local function createLocationBadge()
 		Text = `Friend bonus +{math.floor(GameConfig.Social.FriendCoinBonus * 100 + 0.5)}%`,
 	})
 	UILib.outlinedText(chipLabel)
+	-- The chip sits just under the badge, whatever size the badge ends up.
+	local function place()
+		local badgeBottom = outer.AbsolutePosition.Y + outer.AbsoluteSize.Y
+		chip.Position = UDim2.new(0.5, 0, 0, badgeBottom - gui.AbsolutePosition.Y + 4)
+		local bottom = if chip.Visible then badgeBottom + 4 + chip.AbsoluteSize.Y else badgeBottom
+		HudLayout.set("TopCenter", bottom)
+	end
 	local function updateChip()
 		chip.Visible = player:GetAttribute("FriendBonus") == true
+		place()
 	end
 	player:GetAttributeChangedSignal("FriendBonus"):Connect(updateChip)
+	outer:GetPropertyChangedSignal("AbsoluteSize"):Connect(place)
+	outer:GetPropertyChangedSignal("AbsolutePosition"):Connect(place)
+	chip:GetPropertyChangedSignal("AbsoluteSize"):Connect(place)
 	updateChip()
 end
 
 -- ===== Menu buttons =====
+
+local MENU_GAP = 6 -- px between buttons
+local MENU_HEIGHT_SHARE = 0.78 -- of the safe screen height
+local MENU_BUTTON_MIN = 44 -- tap target
+local MENU_BUTTON_MAX = 76
+
+--[[
+	Lays the menu out as one column, or two when one column of 44 px buttons
+	wouldn't fit (landscape phones), so it never runs under the top bar.
+]]
+local function layoutMenu(column: Frame, grid: UIGridLayout)
+	local available = gui.AbsoluteSize.Y * MENU_HEIGHT_SHARE
+	local count = #MENU
+	local columns = 1
+	local rows = count
+	local cell = math.floor((available - (rows - 1) * MENU_GAP) / rows)
+	if cell < MENU_BUTTON_MIN then
+		columns = 2
+		rows = math.ceil(count / columns)
+		cell = math.floor((available - (rows - 1) * MENU_GAP) / rows)
+	end
+	cell = math.clamp(cell, MENU_BUTTON_MIN, MENU_BUTTON_MAX)
+	grid.CellSize = UDim2.fromOffset(cell, cell)
+	grid.FillDirectionMaxCells = columns
+	column.Size = UDim2.fromOffset(columns * cell + (columns - 1) * MENU_GAP, rows * cell + (rows - 1) * MENU_GAP)
+end
 
 local function createMenu()
 	local column = UILib.createFrame(gui, {
 		Name = "Menu",
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.fromScale(0.985, 0.47),
-		Size = UDim2.fromScale(0.075, 0.66),
+		Position = UDim2.fromScale(0.985, 0.5),
 	})
-	UILib.addSizeLimit(column, Vector2.new(52, 330), Vector2.new(86, 640))
-	local layout = Instance.new("UIListLayout")
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.Padding = UDim.new(0.01, 0)
-	layout.Parent = column
+	local grid = Instance.new("UIGridLayout")
+	grid.SortOrder = Enum.SortOrder.LayoutOrder
+	grid.FillDirection = Enum.FillDirection.Horizontal
+	grid.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	grid.CellPadding = UDim2.fromOffset(MENU_GAP, MENU_GAP)
+	grid.Parent = column
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		layoutMenu(column, grid)
+	end)
+	layoutMenu(column, grid)
 
 	for index, entry in MENU do
 		local button = UILib.createButton(column, {
@@ -260,7 +306,6 @@ local function createMenu()
 			Text = entry.Text,
 			Style = entry.Style,
 			LayoutOrder = index,
-			Size = UDim2.fromScale(1, 0.115),
 			OnClick = function()
 				if WindowManager.isRegistered(entry.Window) then
 					WindowManager.toggle(entry.Window)

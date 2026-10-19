@@ -74,6 +74,7 @@ Theme.Sizes = {
 	Corner = UDim.new(0.18, 0), -- rounded corners as a fraction of the shorter side
 	CornerPill = UDim.new(0.5, 0),
 	MinTapTarget = Vector2.new(44, 44),
+	TabBar = 48, -- px height of a window's tab buttons (fixed, so content never slides under them)
 	TextMax = 32, -- largest auto-scaled text, px
 	TextMaxSmall = 20,
 }

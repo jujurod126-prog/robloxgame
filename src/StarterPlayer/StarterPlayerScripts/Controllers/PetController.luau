@@ -260,9 +260,35 @@ local function buildMyPetsTab(holder: Frame): () -> ()
 
 	local deleteArmedUntil = 0
 
+	-- Action buttons go in a scrolling list with fixed 44 px rows, so on small
+	-- phones they never overlap (an overlapped Lock button could hit Delete).
+	local function actionList(parent: Instance): ScrollingFrame
+		local list = Instance.new("ScrollingFrame")
+		list.Name = "Actions"
+		list.BackgroundTransparency = 1
+		list.BorderSizePixel = 0
+		list.Position = UDim2.fromScale(0, 0.54)
+		list.Size = UDim2.fromScale(1, 0.46)
+		list.CanvasSize = UDim2.new()
+		list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		list.ScrollBarThickness = 6
+		list.ScrollBarImageColor3 = Colors.Waffle
+		local layout = Instance.new("UIListLayout")
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		layout.Padding = UDim.new(0, 6)
+		layout.Parent = list
+		local padding = Instance.new("UIPadding")
+		padding.PaddingTop = UDim.new(0, 4)
+		padding.PaddingBottom = UDim.new(0, 4)
+		padding.Parent = list
+		list.Parent = parent
+		return list
+	end
+
 	local function actionButton(
 		parent: Instance,
-		y: number,
+		order: number,
 		text: string,
 		style: UILib.ButtonStyle,
 		onClick: () -> ()
@@ -270,17 +296,23 @@ local function buildMyPetsTab(holder: Frame): () -> ()
 		return UILib.createButton(parent, {
 			Text = text,
 			Style = style,
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.fromScale(0.5, y),
-			Size = UDim2.fromScale(0.86, 0.1),
+			LayoutOrder = order,
+			Size = UDim2.new(0.86, 0, 0, 44),
 			OnClick = onClick,
 		})
 	end
 
+	-- One request at a time, so a double tap can't merge (or delete) twice.
+	local requestBusy = false
 	local function request(remoteName: Remotes.FunctionName, ...: any)
+		if requestBusy then
+			return
+		end
+		requestBusy = true
 		local args = table.pack(...)
 		task.spawn(function()
 			local result = invoke(remoteName, table.unpack(args, 1, args.n))
+			requestBusy = false
 			NotificationController.toast(result.Message, if result.Ok then "Success" else "Error")
 		end)
 	end
@@ -328,19 +360,20 @@ local function buildMyPetsTab(holder: Frame): () -> ()
 			TextColor3 = Colors.GreenDark,
 		})
 
+		local actions = actionList(detailContent)
 		actionButton(
-			detailContent,
-			0.55,
+			actions,
+			1,
 			if equipped then "Unequip" else "Equip",
 			if equipped then "Secondary" else "Primary",
 			function()
 				request(if equipped then "UnequipPet" else "EquipPet", petGuid)
 			end
 		)
-		actionButton(detailContent, 0.66, if pet.Locked then "Unlock" else "Lock", "Blue", function()
+		actionButton(actions, 2, if pet.Locked then "Unlock" else "Lock", "Blue", function()
 			request("SetPetLocked", petGuid, not pet.Locked)
 		end)
-		actionButton(detailContent, 0.77, "Delete", if pet.Locked then "Disabled" else "Danger", function()
+		actionButton(actions, 3, "Delete", if pet.Locked then "Disabled" else "Danger", function()
 			if os.clock() < deleteArmedUntil then
 				deleteArmedUntil = 0
 				request("DeletePet", petGuid)
@@ -354,8 +387,8 @@ local function buildMyPetsTab(holder: Frame): () -> ()
 		local needed = GameConfig.Pets.MergeCount
 		local canMerge = not golden and copies >= needed
 		actionButton(
-			detailContent,
-			0.88,
+			actions,
+			4,
 			if golden then "Already Golden" else `Merge {math.min(copies, needed)}/{needed} → Golden`,
 			if canMerge then "Pink" else "Disabled",
 			function()
@@ -456,14 +489,14 @@ local function open()
 	local holder = content:add(UILib.createFrame(body, {
 		Name = "TabContent",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0, 0.16),
-		Size = UDim2.fromScale(1, 0.84),
+		Position = UDim2.new(0, 0, 0, Theme.Sizes.TabBar + 8), -- below the tab buttons
+		Size = UDim2.new(1, 0, 1, -(Theme.Sizes.TabBar + 8)),
 	}))
 	local tabs = UILib.createTabs(body, TABS, function(name)
 		selectedTab = name
 		buildTab(name, holder)
 	end)
-	tabs.Frame.Size = UDim2.fromScale(1, 0.12)
+	tabs.Frame.Size = UDim2.new(1, 0, 0, Theme.Sizes.TabBar)
 	content:add(tabs.Frame)
 	tabs.select(selectedTab)
 

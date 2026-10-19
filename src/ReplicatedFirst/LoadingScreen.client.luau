@@ -38,6 +38,7 @@ gui.ResetOnSpawn = false
 local background = Instance.new("CanvasGroup")
 background.Size = UDim2.fromScale(1, 1)
 background.BackgroundColor3 = PINK
+background.Active = true -- block taps to the HUD underneath while loading
 background.Parent = gui
 local gradient = Instance.new("UIGradient")
 gradient.Color = ColorSequence.new(Color3.fromRGB(255, 200, 225), Color3.fromRGB(170, 215, 255))

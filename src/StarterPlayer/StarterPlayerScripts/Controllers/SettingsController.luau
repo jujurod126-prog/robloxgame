@@ -92,6 +92,7 @@ local function createSlider(
 		Size = UDim2.fromScale(2.2, 2.2), -- relative to the track height (aspect below)
 		SizeConstraint = Enum.SizeConstraint.RelativeYY,
 		BackgroundColor3 = Colors.Cream,
+		Active = true, -- dragging the knob mustn't also turn the camera
 		ZIndex = 2,
 	})
 	UILib.addCorner(knob, Theme.Sizes.CornerPill)
@@ -140,11 +141,20 @@ local function createSlider(
 		end
 	end))
 	content:add(UserInputService.InputEnded:Connect(function(input: InputObject)
-		if dragging and (input == dragging or input.UserInputType == dragging.UserInputType) then
+		-- Touch: only the dragging finger (not the thumbstick thumb) ends the drag.
+		local isMouse = dragging and dragging.UserInputType == Enum.UserInputType.MouseButton1
+		if dragging and (input == dragging or (isMouse and input.UserInputType == Enum.UserInputType.MouseButton1)) then
 			dragging = nil
 			onCommit(current)
 		end
 	end))
+	-- Closing the window mid-drag still saves the value.
+	content:add(function()
+		if dragging then
+			dragging = nil
+			onCommit(current)
+		end
+	end)
 end
 
 local function createToggle(order: number, text: string, value: boolean, onChange: (boolean) -> ())
@@ -172,6 +182,17 @@ local function open()
 	UILib.tweenIn(window.Root)
 	local data = DataController.getData()
 	if data == nil then
+		-- Opened before the save arrived: build it once the data is here.
+		local alive = true
+		content:add(function()
+			alive = false
+		end)
+		task.spawn(function()
+			DataController.waitForData()
+			if alive then
+				open()
+			end
+		end)
 		return
 	end
 	local settings = data.Settings

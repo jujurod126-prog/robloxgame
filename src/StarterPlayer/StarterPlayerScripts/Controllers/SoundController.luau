@@ -84,19 +84,24 @@ local function updateMusic()
 	end
 end
 
--- Switches back to the zone track when this player's Rush Hour ends.
-local function onRushHourChanged()
-	updateMusic()
-	rushCheckToken += 1
-	local token = rushCheckToken
+-- Switches back to the zone track when this player's Rush Hour ends
+-- (re-checks until it really has, in case the server clock shifted a little).
+local function scheduleRushCheck(token: number)
 	local ends = player:GetAttribute("RushHourEnds") :: number?
 	if ends and ends > Workspace:GetServerTimeNow() then
 		task.delay(ends - Workspace:GetServerTimeNow() + 0.1, function()
 			if token == rushCheckToken then
 				updateMusic()
+				scheduleRushCheck(token)
 			end
 		end)
 	end
+end
+
+local function onRushHourChanged()
+	updateMusic()
+	rushCheckToken += 1
+	scheduleRushCheck(rushCheckToken)
 end
 
 local function onArrive()

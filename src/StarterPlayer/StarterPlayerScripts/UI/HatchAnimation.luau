@@ -158,83 +158,95 @@ function HatchAnimation.play(eggId: string, pets: { HatchedPet })
 	gui.IgnoreGuiInset = true
 	gui.ScreenInsets = Enum.ScreenInsets.None
 
-	local root = Instance.new("CanvasGroup")
-	root.Size = UDim2.fromScale(1, 1)
-	root.BackgroundColor3 = Colors.Overlay
-	root.BackgroundTransparency = 0.35
-	root.GroupTransparency = 1
-	root.Parent = gui
+	-- Whatever goes wrong inside, the overlay must never stay stuck on screen.
+	local ok, err = pcall(function()
+		local root = Instance.new("CanvasGroup")
+		root.Size = UDim2.fromScale(1, 1)
+		root.BackgroundColor3 = Colors.Overlay
+		root.BackgroundTransparency = 0.35
+		root.GroupTransparency = 1
+		root.Parent = gui
 
-	local row = UILib.createFrame(root, {
-		Name = "Row",
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(0.9, 0.6),
-		BackgroundTransparency = 1,
-	})
-	UILib.addSizeLimit(row, nil, Vector2.new(1000, 520))
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.Padding = UDim.new(0.03, 0)
-	layout.Parent = row
+		local row = UILib.createFrame(root, {
+			Name = "Row",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.9, 0.6),
+			BackgroundTransparency = 1,
+		})
+		UILib.addSizeLimit(row, nil, Vector2.new(1000, 520))
+		local layout = Instance.new("UIListLayout")
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.Padding = UDim.new(0.03, 0)
+		layout.Parent = row
 
-	local flash = UILib.createFrame(root, {
-		Name = "Flash",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		ZIndex = 10,
-	})
-	local hint = UILib.createLabel(root, {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromScale(0.5, 0.95),
-		Size = UDim2.fromScale(0.5, 0.05),
-		Text = "Tap to continue",
-		Visible = false,
-	})
-	UILib.outlinedText(hint)
+		local flash = UILib.createFrame(root, {
+			Name = "Flash",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 1,
+			ZIndex = 10,
+		})
+		local hint = UILib.createLabel(root, {
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.fromScale(0.5, 0.95),
+			Size = UDim2.fromScale(0.5, 0.05),
+			Text = "Tap to continue",
+			Visible = false,
+		})
+		UILib.outlinedText(hint)
 
-	local reveals = {}
-	for index, pet in pets do
-		table.insert(reveals, buildSlot(row, index, eggId, pet))
-	end
+		local reveals = {}
+		for index, pet in pets do
+			table.insert(reveals, buildSlot(row, index, eggId, pet))
+		end
 
-	gui.Parent = player:WaitForChild("PlayerGui")
-	tween(root, TweenInfo.new(0.25), { GroupTransparency = 0 }).Completed:Wait()
+		gui.Parent = player:WaitForChild("PlayerGui")
+		tween(root, TweenInfo.new(0.25), { GroupTransparency = 0 }).Completed:Wait()
 
-	-- All eggs hatch together; wait for the slowest.
-	local remaining = #reveals
-	for _, reveal in reveals do
-		task.spawn(function()
-			reveal(flash)
-			remaining -= 1
+		-- All eggs hatch together; wait for the slowest.
+		local remaining = #reveals
+		for _, reveal in reveals do
+			task.spawn(function()
+				local revealOk, revealErr = pcall(function()
+					reveal(flash)
+				end)
+				if not revealOk then
+					warn(`[HatchAnimation] {revealErr}`)
+				end
+				remaining -= 1
+			end)
+		end
+		local revealDeadline = os.clock() + 15
+		while remaining > 0 and os.clock() < revealDeadline do
+			task.wait(0.05)
+		end
+		UILib.playSound(Assets.SFX_HATCH_FANFARE)
+
+		-- Close on tap or after a few seconds.
+		hint.Visible = true
+		local closed = false
+		local catcher = Instance.new("TextButton")
+		catcher.Text = ""
+		catcher.BackgroundTransparency = 1
+		catcher.Size = UDim2.fromScale(1, 1)
+		catcher.ZIndex = 20
+		catcher.Parent = root
+		catcher.Activated:Connect(function()
+			closed = true
 		end)
-	end
-	while remaining > 0 do
-		task.wait(0.05)
-	end
-	UILib.playSound(Assets.SFX_HATCH_FANFARE)
+		local deadline = os.clock() + SHOW_SECONDS
+		while not closed and os.clock() < deadline do
+			task.wait(0.05)
+		end
 
-	-- Close on tap or after a few seconds.
-	hint.Visible = true
-	local closed = false
-	local catcher = Instance.new("TextButton")
-	catcher.Text = ""
-	catcher.BackgroundTransparency = 1
-	catcher.Size = UDim2.fromScale(1, 1)
-	catcher.ZIndex = 20
-	catcher.Parent = root
-	catcher.Activated:Connect(function()
-		closed = true
+		tween(root, TweenInfo.new(0.2), { GroupTransparency = 1 }).Completed:Wait()
 	end)
-	local deadline = os.clock() + SHOW_SECONDS
-	while not closed and os.clock() < deadline do
-		task.wait(0.05)
+	if not ok then
+		warn(`[HatchAnimation] {err}`)
 	end
-
-	tween(root, TweenInfo.new(0.2), { GroupTransparency = 1 }).Completed:Wait()
 	gui:Destroy()
 end
 

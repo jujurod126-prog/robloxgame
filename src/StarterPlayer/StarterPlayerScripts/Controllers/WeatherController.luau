@@ -67,7 +67,7 @@ local function createRain()
 	rain.Enabled = false
 	rain.Parent = rainPart
 
-	rainPart.Parent = Workspace.CurrentCamera
+	rainPart.Parent = Workspace -- a local part: only this player sees it
 end
 
 local function setRainSound(on: boolean)
@@ -117,9 +117,6 @@ function WeatherController.Start()
 		if rain.Enabled then
 			local camera = Workspace.CurrentCamera
 			rainPart.CFrame = CFrame.new(camera.CFrame.Position + Vector3.new(0, RAIN_HEIGHT, 0))
-			if rainPart.Parent ~= camera then
-				rainPart.Parent = camera -- the camera object can be replaced
-			end
 		end
 	end)
 end

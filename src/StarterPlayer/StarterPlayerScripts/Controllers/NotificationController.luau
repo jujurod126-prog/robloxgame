@@ -20,6 +20,7 @@ local NumberFormat = require(ReplicatedStorage.Shared.Modules.NumberFormat)
 local Remotes = require(ReplicatedStorage.Shared.Modules.Remotes)
 
 local UI = script.Parent.Parent.UI
+local HudLayout = require(UI.HudLayout)
 local Theme = require(UI.Theme)
 local UILib = require(UI.UILib)
 
@@ -30,6 +31,7 @@ local SHOW_SECONDS = 2.6
 
 local NotificationController = {}
 
+local notificationGui: ScreenGui
 local stack: Frame
 local order = 0
 local bannerFrame: Frame
@@ -119,6 +121,14 @@ local function createBanner(gui: ScreenGui)
 	bannerFrame = outer
 end
 
+-- Banner under the HUD location badge, toasts under the banner (when it's showing).
+local function restack()
+	local top = HudLayout.get("TopCenter") - notificationGui.AbsolutePosition.Y + 6
+	bannerFrame.Position = UDim2.new(0.5, 0, 0, top)
+	local bannerSpace = if bannerFrame.Visible then bannerFrame.AbsoluteSize.Y + 6 else 0
+	stack.Position = UDim2.new(0.5, 0, 0, top + bannerSpace)
+end
+
 function NotificationController.Init()
 	local gui = UILib.createScreenGui("Notifications", Theme.Layers.Notification)
 	stack = UILib.createFrame(gui, {
@@ -135,6 +145,10 @@ function NotificationController.Init()
 	layout.Padding = UDim.new(0.03, 0)
 	layout.Parent = stack
 	createBanner(gui)
+	notificationGui = gui
+	HudLayout.watch(restack)
+	bannerFrame:GetPropertyChangedSignal("Visible"):Connect(restack)
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(restack)
 	gui.Parent = player:WaitForChild("PlayerGui")
 end
 

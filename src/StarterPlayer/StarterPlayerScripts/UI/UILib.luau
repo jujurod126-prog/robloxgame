@@ -105,7 +105,7 @@ end
 function UILib.addTextLimit(label: TextLabel | TextButton, maxSize: number?, minSize: number?): UITextSizeConstraint
 	local limit = Instance.new("UITextSizeConstraint")
 	limit.MaxTextSize = maxSize or Theme.Sizes.TextMax
-	limit.MinTextSize = minSize or 8
+	limit.MinTextSize = minSize or 10 -- smaller is unreadable on phones
 	limit.Parent = label
 	return limit
 end
@@ -329,7 +329,7 @@ end
 
 -- ===== Buttons =====
 
-function UILib.setButtonStyle(button: GuiButton, style: ButtonStyle)
+local function applyButtonStyle(button: GuiButton, style: ButtonStyle)
 	button.BackgroundColor3 = BUTTON_COLORS[style]
 	button:SetAttribute("Disabled", style == "Disabled")
 	button.AutoButtonColor = false
@@ -344,10 +344,38 @@ function UILib.setButtonStyle(button: GuiButton, style: ButtonStyle)
 	end
 end
 
-function UILib.setButtonText(button: GuiButton, text: string)
+local function applyButtonText(button: GuiButton, text: string)
 	local label = button:FindFirstChild("Label") :: TextLabel?
 	if label then
 		label.Text = text
+	end
+end
+
+-- Style changes are ignored while the button is busy (see setBusy).
+function UILib.setButtonStyle(button: GuiButton, style: ButtonStyle)
+	if not button:GetAttribute("Busy") then
+		applyButtonStyle(button, style)
+	end
+end
+
+function UILib.setButtonText(button: GuiButton, text: string)
+	if not button:GetAttribute("Busy") then
+		applyButtonText(button, text)
+	end
+end
+
+--[[
+	Marks a button as waiting for the server: it shows "..." and can't be pressed,
+	and live data updates can't re-enable it until setBusy(button, false).
+	This stops a quick double tap from buying something twice.
+]]
+function UILib.setBusy(button: GuiButton, busy: boolean)
+	if busy then
+		applyButtonStyle(button, "Disabled")
+		applyButtonText(button, "...")
+		button:SetAttribute("Busy", true)
+	else
+		button:SetAttribute("Busy", nil)
 	end
 end
 
