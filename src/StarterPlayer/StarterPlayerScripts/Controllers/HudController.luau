@@ -6,7 +6,7 @@
 	  * top center: neighborhood name and 5-star Reputation
 	  * right side: menu buttons (Shop, Pets, Flavors, Quests, Rebirth, Daily, Settings)
 	    with red notification dots - HudController.setDot(name, visible)
-	  * bottom center: cone contents
+	  (the bottom-center cone / combo strip is OrderBarController)
 	Buttons open windows through WindowManager; windows not built yet say "Coming soon".
 ]]
 
@@ -19,6 +19,7 @@ local Assets = require(Shared.Modules.Assets)
 local GameConfig = require(Shared.Data.GameConfig)
 local Neighborhoods = require(Shared.Data.Neighborhoods)
 local NumberFormat = require(Shared.Modules.NumberFormat)
+local FlavorRules = require(Shared.Modules.FlavorRules)
 local ShopRules = require(Shared.Modules.ShopRules)
 
 local UI = script.Parent.Parent.UI
@@ -239,41 +240,24 @@ local function createMenu()
 	end
 end
 
--- ===== Cone =====
-
-local function createConeDisplay()
-	local outer, inner = UILib.createPanel(gui, {
-		Name = "Cone",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.fromScale(0.5, 0.97),
-		Size = UDim2.fromScale(0.2, 0.075),
-	}, Theme.Sizes.CornerPill)
-	UILib.addSizeLimit(outer, Vector2.new(150, 42), Vector2.new(260, 60))
-
-	local label = UILib.createLabel(inner, {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(0.9, 0.7),
-	})
-	local function update()
-		local scoops = (player:GetAttribute("ConeScoops") :: number?) or 0
-		local capacity = (player:GetAttribute("ConeCapacity") :: number?) or 1
-		label.Text = `Cone {scoops}/{capacity}`
-	end
-	player:GetAttributeChangedSignal("ConeScoops"):Connect(update)
-	player:GetAttributeChangedSignal("ConeCapacity"):Connect(update)
-	update()
-end
-
 -- ===== Dots =====
 
-local function watchShopDot()
+local function watchDots()
 	local function update()
 		local data = DataController.getData()
 		HudController.setDot("Shop", data ~= nil and ShopRules.hasAffordable(data))
+		HudController.setDot("Flavors", data ~= nil and FlavorRules.hasAffordable(data))
 	end
 	DataController.Changed:Connect(function(path: { any })
-		if #path == 0 or path[1] == "Coins" or path[1] == "Truck" or path[1] == "Rebirths" then
+		local key = path[1]
+		if
+			#path == 0
+			or key == "Coins"
+			or key == "Truck"
+			or key == "Rebirths"
+			or key == "Flavors"
+			or key == "Toppings"
+		then
 			update()
 		end
 	end)
@@ -290,8 +274,7 @@ function HudController.Start()
 	createCurrencies()
 	createLocationBadge()
 	createMenu()
-	createConeDisplay()
-	task.spawn(watchShopDot)
+	task.spawn(watchDots)
 end
 
 return HudController

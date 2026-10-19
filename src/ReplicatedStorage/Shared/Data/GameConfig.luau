@@ -62,6 +62,8 @@ local GameConfig = {
 	Orders = {
 		MaxTipFraction = 0.5, -- tip at full patience = 50% of the order's value
 		WrongOrderPayFraction = 0.4,
+		-- Served with at least this much patience left = heart-eyes ("Love") reaction.
+		DelightedPatience = 0.7,
 	},
 
 	Reputation = {
@@ -125,6 +127,7 @@ local GameConfig = {
 		Default = { Calls = 10, WindowSeconds = 1 },
 		GetSnapshot = { Calls = 3, WindowSeconds = 10 },
 		Purchase = { Calls = 6, WindowSeconds = 1 },
+		Action = { Calls = 12, WindowSeconds = 1 }, -- SelectFlavor, AddTopping
 	},
 }
 

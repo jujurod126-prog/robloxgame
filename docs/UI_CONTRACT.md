@@ -39,10 +39,15 @@ DataController.Changed:Connect(function(path, value) ... end)
 |------|------|-----------|-----------|---------|------------|-------|
 | `GetSnapshot` | RemoteFunction | Client → Server | none | `{ Seq: number, Data: PlayerData }`, or `nil` if not loaded / rate-limited | 3 per 10 s | 1 |
 | `DataPatch` | RemoteEvent | Server → Client | `seq: number, path: {string \| number}, value: any` | — | — | 1 |
-| `OrderResult` | RemoteEvent | Server → Client | `position: Vector3, coins: number, correct: boolean` (a customer just paid; coins already include multipliers) | — | — | 2 |
+| `OrderResult` | RemoteEvent | Server → Client | `position: Vector3, coins: number, correct: boolean, comboMultiplier: number` (a customer just paid; coins already include multipliers) | — | — | 2, 4 |
 | `Notify` | RemoteEvent | Server → Client | `message: string, kind: "Info" \| "Error"` (short toast text) | — | — | 2 |
 | `BuyUpgrade` | RemoteFunction | Client → Server | `statId: string` (a key of `Shared/Data/Upgrades`) | `{ Ok: boolean, Message: string }` | 6 per second (shared with BuyTruckTier) | 3 |
 | `BuyTruckTier` | RemoteFunction | Client → Server | `tier: number` (only the next tier is accepted) | `{ Ok: boolean, Message: string }` | 6 per second | 3 |
+| `UnlockFlavor` | RemoteFunction | Client → Server | `flavorId: string` | `{ Ok, Message }` (auto-loads into a free truck slot) | Purchase limit | 4 |
+| `EquipFlavor` | RemoteFunction | Client → Server | `flavorId: string, slot: number` (1..truck FlavorSlots; moving a loaded flavor swaps slots) | `{ Ok, Message }` | Purchase limit | 4 |
+| `UnlockTopping` | RemoteFunction | Client → Server | `toppingId: string` | `{ Ok, Message }` | Purchase limit | 4 |
+| `AddTopping` | RemoteFunction | Client → Server | `toppingId: string` (must be unlocked, near your truck, cone not empty, one per cone) | `{ Ok, Message }` | 12 per second (Action) | 4 |
+| `SelectFlavor` | RemoteEvent | Client → Server | `slot: number` (which loaded flavor the dispenser scoops) | — | 12 per second (Action) | 4 |
 
 *Later stages add rows here, for example
 `UnlockFlavor(flavorId)` and `HatchEgg(eggId, count)`.*
@@ -70,6 +75,9 @@ prompt's hold into a tap.
 | `ConeScoops` | number | Scoops currently on the cone |
 | `ConeCapacity` | number | Max scoops (Storage upgrade) |
 | `ConeFlavors` | string | Comma-separated flavor ids, bottom to top, e.g. `"Vanilla,Vanilla"` |
+| `ConeTopping` | string? | Topping on the cone, or no attribute when there isn't one |
+| `ActiveSlot`, `ActiveFlavor` | number, string | Which loaded flavor the dispenser scoops |
+| `Combo` | number | Correct orders in a row (set by CustomerService; 0 after a wrong or lost customer) |
 
 **On each truck model** in `Workspace.Trucks`: `OwnerUserId`, `OwnerName`, `Tier`,
 `CounterZ`, `StandZ` and `Width`. The dispenser prompt also has a `ScoopSeconds` attribute.
@@ -81,9 +89,9 @@ prompt's hold into a tap.
 | `OwnerUserId` | number | The player this customer belongs to |
 | `CustomerName`, `CustomerType` | string | Display name; key into `Shared/Data/Customers` |
 | `State` | string | `"Arriving"`, `"Waiting"` or `"Leaving"` |
-| `OrderFlavor`, `OrderScoops` | string, number | The order (set before `State` becomes `"Waiting"`) |
+| `OrderFlavor`, `OrderScoops`, `OrderTopping` | string, number, string? | The order (set before `State` becomes `"Waiting"`; no `OrderTopping` = no topping) |
 | `PatienceTotal`, `PatienceEnd` | number | Seconds of patience, and the `Workspace:GetServerTimeNow()` time it runs out |
-| `Mood` | string | `"Happy"`, `"Sad"` or `"Angry"`, set when leaving |
+| `Mood` | string | `"Love"` (fast and correct), `"Happy"`, `"Sad"` (wrong order) or `"Angry"` (ran out of patience), set when leaving |
 
 Customer models are pooled: a model leaving `Workspace.Customers` and coming back later is a
 new customer.

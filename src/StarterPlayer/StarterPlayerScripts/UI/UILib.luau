@@ -129,6 +129,27 @@ function UILib.playClickSound()
 	SoundService:PlayLocalSound(clickSound :: Sound)
 end
 
+local soundCache: { [string]: Sound? } = {}
+
+-- Plays a UI/game sound locally (does nothing until the asset id is filled in).
+function UILib.playSound(soundId: string, playbackSpeed: number?, volume: number?)
+	if Assets.isPlaceholder(soundId) then
+		return
+	end
+	local sound = soundCache[soundId]
+	if sound == nil then
+		local created = Instance.new("Sound")
+		created.SoundId = soundId
+		created.Parent = SoundService
+		soundCache[soundId] = created
+		sound = created
+	end
+	local playing = sound :: Sound
+	playing.PlaybackSpeed = playbackSpeed or 1
+	playing.Volume = volume or 0.6
+	SoundService:PlayLocalSound(playing)
+end
+
 -- ===== Button effects =====
 
 local function effectScale(button: GuiObject): UIScale
@@ -394,6 +415,68 @@ function UILib.createProgressBar(parent: Instance?, color: Color3?, props: { [st
 	local current: Tween? = nil
 	return {
 		Frame = back,
+		set = function(fraction: number, animate: boolean?)
+			local size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
+			if current then
+				current:Cancel()
+			end
+			if animate then
+				current = TweenService:Create(fill, Theme.Motion.CountUp, { Size = size });
+				(current :: Tween):Play()
+			else
+				fill.Size = size
+			end
+		end,
+	}
+end
+
+--[[
+	A progress bar drawn with one of the bar sprites (PatienceBar, ComboBar, BarFrame).
+	Keeps the sprite's shape with an aspect constraint; falls back to a plain
+	progress bar if the sprite sheet isn't uploaded.
+]]
+function UILib.createSpriteBar(
+	parent: Instance?,
+	spriteName: string,
+	color: Color3?,
+	props: { [string]: any }?
+): ProgressBar
+	local track = Theme.BarTracks[spriteName]
+	local image = Instance.new("ImageLabel")
+	image.Name = spriteName
+	image.BackgroundTransparency = 1
+	image.ScaleType = Enum.ScaleType.Fit
+	image.Size = UDim2.fromScale(1, 1)
+	apply(image, props)
+	UILib.addAspect(image, Sprites.aspectRatio(spriteName))
+	image.Parent = parent
+
+	if track == nil or not Sprites.apply(image, spriteName) then
+		local bar = UILib.createProgressBar(image, color, { Size = UDim2.fromScale(1, 0.4) })
+		bar.Frame.AnchorPoint = Vector2.new(0, 0.5)
+		bar.Frame.Position = UDim2.fromScale(0, 0.5)
+		return { Frame = image :: any, set = bar.set }
+	end
+
+	-- Hide the painted fill with an empty track, then draw our own fill on top.
+	local empty = UILib.createFrame(image, {
+		Name = "Track",
+		Position = UDim2.fromScale(track[1], track[2]),
+		Size = UDim2.fromScale(track[3] - track[1], track[4] - track[2]),
+		BackgroundColor3 = Colors.CreamDark,
+	})
+	UILib.addCorner(empty, Theme.Sizes.CornerPill)
+	local fill = UILib.createFrame(empty, {
+		Name = "Fill",
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = color or Colors.Green,
+	})
+	UILib.addCorner(fill, Theme.Sizes.CornerPill)
+	UILib.addGradient(fill)
+
+	local current: Tween? = nil
+	return {
+		Frame = image :: any,
 		set = function(fraction: number, animate: boolean?)
 			local size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
 			if current then

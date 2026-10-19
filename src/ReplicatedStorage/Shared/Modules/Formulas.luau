@@ -35,24 +35,37 @@ end
 
 export type OrderPayoutInput = {
 	ScoopValue: number, -- sum of CoinValue for every scoop in the order
+	ToppingMultiplier: number, -- the order's topping ValueMultiplier, 1 if no topping
+	HasTopping: boolean,
+	MatchesPreference: boolean, -- order fits the neighborhood's favorite tags
 	Customer: GameData.CustomerDef,
 	Neighborhood: GameData.NeighborhoodDef,
 	Truck: GameData.TruckDef,
 	TipBonus: number, -- from the Tip Bonus upgrade (0.1 = +10%)
 	PatienceFraction: number, -- 1 = served instantly, 0 = at the last second
+	ComboMultiplier: number, -- from Formulas.comboMultiplier
 	Correct: boolean,
 }
 
 --[[
 	Coins for one served order, BEFORE the player's global multipliers
 	(rebirths, pets, passes - applied by EconomyService.awardCoins).
-	Returns base, tip. Wrong orders pay a fraction of base and no tip.
+	Returns base, tip. Wrong orders pay a fraction of the plain base, with no
+	tip and no combo.
 ]]
 function Formulas.orderPayout(input: OrderPayoutInput): (number, number)
-	local base = input.ScoopValue * input.Customer.PayMultiplier * input.Neighborhood.PayMultiplier
+	local neighborhood = input.Neighborhood
+	local base = input.ScoopValue * input.ToppingMultiplier * input.Customer.PayMultiplier * neighborhood.PayMultiplier
 	if not input.Correct then
 		return base * GameConfig.Orders.WrongOrderPayFraction, 0
 	end
+	if input.MatchesPreference then
+		base *= neighborhood.PreferenceBonus
+	end
+	if input.HasTopping then
+		base *= neighborhood.ToppingPayBonus
+	end
+	base *= input.ComboMultiplier
 	local tip = base
 		* GameConfig.Orders.MaxTipFraction
 		* math.clamp(input.PatienceFraction, 0, 1)

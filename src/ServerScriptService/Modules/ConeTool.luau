@@ -29,14 +29,17 @@ function ConeTool.create(): Tool
 	return tool
 end
 
--- Replaces the scoop balls on the cone with one ball per color, stacked upward.
-function ConeTool.setScoops(tool: Tool, colors: { Color3 })
+--[[
+	Replaces the scoop balls on the cone with one ball per color, stacked upward,
+	plus a little topping cap in toppingColor if given.
+]]
+function ConeTool.setScoops(tool: Tool, colors: { Color3 }, toppingColor: Color3?)
 	local handle = tool:FindFirstChild("Handle") :: BasePart?
 	if handle == nil then
 		return
 	end
 	for _, child in handle:GetChildren() do
-		if child.Name == "Scoop" then
+		if child.Name == "Scoop" or child.Name == "Topping" then
 			child:Destroy()
 		end
 	end
@@ -55,6 +58,22 @@ function ConeTool.setScoops(tool: Tool, colors: { Color3 })
 		weld.Part1 = scoop
 		weld.Parent = scoop
 		scoop.Parent = handle
+	end
+	if toppingColor and #colors > 0 then
+		local topping = Instance.new("Part")
+		topping.Name = "Topping"
+		topping.Shape = Enum.PartType.Ball
+		topping.Size = Vector3.new(0.35, 0.35, 0.35)
+		topping.Color = toppingColor
+		topping.Material = Enum.Material.SmoothPlastic
+		topping.CanCollide = false
+		topping.Massless = true
+		topping.CFrame = handle.CFrame * CFrame.new(0, handle.Size.Y / 2 + #colors * SCOOP_STACK_GAP + 0.15, 0)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = handle
+		weld.Part1 = topping
+		weld.Parent = topping
+		topping.Parent = handle
 	end
 end
 

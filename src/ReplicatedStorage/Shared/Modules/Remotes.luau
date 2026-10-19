@@ -15,20 +15,32 @@ local RunService = game:GetService("RunService")
 local FOLDER_NAME = "Remotes"
 local WAIT_TIMEOUT = 30
 
-export type EventName = "DataPatch" | "OrderResult" | "Notify"
-export type FunctionName = "GetSnapshot" | "BuyUpgrade" | "BuyTruckTier"
+export type EventName = "DataPatch" | "OrderResult" | "Notify" | "SelectFlavor"
+export type FunctionName =
+	"GetSnapshot"
+	| "BuyUpgrade"
+	| "BuyTruckTier"
+	| "UnlockFlavor"
+	| "EquipFlavor"
+	| "UnlockTopping"
+	| "AddTopping"
 
 -- Add new names to BOTH the type above and the list below.
 local EVENT_NAMES: { EventName } = {
 	"DataPatch", -- Server -> Client: (seq: number, path: {string}, value: any)
-	"OrderResult", -- Server -> Client: (position: Vector3, coins: number, correct: boolean)
+	"OrderResult", -- Server -> Client: (position: Vector3, coins: number, correct: boolean, comboMultiplier: number)
 	"Notify", -- Server -> Client: (message: string, kind: "Info" | "Error")
+	"SelectFlavor", -- Client -> Server: (slot: number) choose which loaded flavor the dispenser scoops
 }
 
 local FUNCTION_NAMES: { FunctionName } = {
 	"GetSnapshot", -- Client -> Server: () -> { Seq: number, Data: PlayerData }?
 	"BuyUpgrade", -- Client -> Server: (statId: string) -> PurchaseResult
 	"BuyTruckTier", -- Client -> Server: (tier: number) -> PurchaseResult
+	"UnlockFlavor", -- Client -> Server: (flavorId: string) -> PurchaseResult
+	"EquipFlavor", -- Client -> Server: (flavorId: string, slot: number) -> PurchaseResult
+	"UnlockTopping", -- Client -> Server: (toppingId: string) -> PurchaseResult
+	"AddTopping", -- Client -> Server: (toppingId: string) -> PurchaseResult (put a topping on your cone)
 }
 
 -- What purchase RemoteFunctions return. Message is shown to the player.

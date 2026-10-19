@@ -8,8 +8,9 @@
 	  * customers whose patience runs out leave without paying
 	Everything is cleaned up when the player leaves or their truck is rebuilt.
 
-	Stage 2: one customer type (Regular), one neighborhood (Sunny Sidewalk).
-	Stage 4 adds flavors/toppings in orders, combo and Reputation.
+	Stage 4: orders use the truck's loaded flavors and unlocked toppings; serving
+	tracks a combo (Player attribute "Combo") and changes Reputation.
+	Stage 5 adds more customer types and neighborhoods.
 ]]
 
 local Players = game:GetService("Players")
@@ -25,11 +26,13 @@ local GameConfig = require(Shared.Data.GameConfig)
 local Neighborhoods = require(Shared.Data.Neighborhoods)
 local PlayerStats = require(Shared.Modules.PlayerStats)
 local Remotes = require(Shared.Modules.Remotes)
+local Toppings = require(Shared.Data.Toppings)
 
 local ServerModules = script.Parent.Parent.Modules
 local Customer = require(ServerModules.Customer)
 local CustomerRig = require(ServerModules.CustomerRig)
 local Notify = require(ServerModules.Notify)
+local Orders = require(ServerModules.Orders)
 local ConeService = require(script.Parent.ConeService)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -37,7 +40,7 @@ local TruckService = require(script.Parent.TruckService)
 
 type Customer = Customer.Customer
 
--- Stage 2 only has the starting area and the Regular customer.
+-- Until Stage 5: only the starting area and the Regular customer.
 local CURRENT_NEIGHBORHOOD = Neighborhoods[GameConfig.Starting.Neighborhood]
 local CUSTOMER_TYPE = Customers.Regular
 local EXIT_SIDE_GAP = 10 -- leaving customers walk this far past the truck's side
@@ -53,6 +56,7 @@ local CustomerService = {}
 
 local customersFolder: Folder
 local sessions: { [Player]: Session } = {}
+local combos: { [Player]: number } = {} -- correct orders in a row (not saved)
 local random = Random.new()
 
 local flow = GameConfig.CustomerFlow
@@ -84,6 +88,23 @@ end
 local function capacityFor(player: Player): number
 	local data = DataService.getData(player)
 	return if data then PlayerStats.servingCapacity(data, CURRENT_NEIGHBORHOOD) else 0
+end
+
+local function setCombo(player: Player, combo: number)
+	combos[player] = combo
+	player:SetAttribute("Combo", combo)
+	if combo > 0 then
+		DataService.update(player, { "Stats", "HighestCombo" }, function(best)
+			return math.max(best, combo)
+		end)
+	end
+end
+
+local function changeReputation(player: Player, delta: number)
+	local config = GameConfig.Reputation
+	DataService.update(player, { "Reputation" }, function(rating)
+		return math.clamp(rating + delta, config.Min, config.Max)
+	end)
 end
 
 local fill: (session: Session) -> ()
@@ -122,21 +143,25 @@ local function onServe(session: Session, customer: Customer, player: Player)
 	end
 
 	local order = customer.order :: Customer.Order
-	local scoops = ConeService.takeScoops(player)
-	local correct = #scoops == order.Scoops
-	for _, flavorId in scoops do
-		if flavorId ~= order.FlavorId then
-			correct = false
-		end
-	end
+	local patience = Customer.patienceFraction(customer)
+	local correct = Orders.isCorrect(order, ConeService.takeCone(player))
+
+	-- Combo counts this order before paying, so the 5th correct order in a row already gets x1.1.
+	local combo = if correct then (combos[player] or 0) + 1 else 0
+	setCombo(player, combo)
+	local comboMultiplier = Formulas.comboMultiplier(combo)
 
 	local base, tip = Formulas.orderPayout({
 		ScoopValue = Flavors[order.FlavorId].CoinValue * order.Scoops,
+		ToppingMultiplier = if order.ToppingId then Toppings[order.ToppingId].ValueMultiplier else 1,
+		HasTopping = order.ToppingId ~= nil,
+		MatchesPreference = Orders.matchesPreference(order, CURRENT_NEIGHBORHOOD),
 		Customer = customer.def,
 		Neighborhood = CURRENT_NEIGHBORHOOD,
 		Truck = PlayerStats.truck(data),
 		TipBonus = PlayerStats.tipBonus(data),
-		PatienceFraction = Customer.patienceFraction(customer),
+		PatienceFraction = patience,
+		ComboMultiplier = comboMultiplier,
 		Correct = correct,
 	})
 	local coins = EconomyService.awardCoins(player, base + tip)
@@ -144,10 +169,18 @@ local function onServe(session: Session, customer: Customer, player: Player)
 	DataService.increment(player, { "Stats", "CustomersServed" }, 1)
 	if correct then
 		DataService.increment(player, { "Stats", "PerfectOrders" }, 1)
+		changeReputation(player, GameConfig.Reputation.CorrectOrder + customer.def.ReputationBonus)
+	else
+		changeReputation(player, GameConfig.Reputation.WrongOrder)
 	end
-	Remotes.event("OrderResult"):FireClient(player, customer.root.Position + Vector3.new(0, 3, 0), coins, correct)
+	Remotes.event("OrderResult")
+		:FireClient(player, customer.root.Position + Vector3.new(0, 3, 0), coins, correct, comboMultiplier)
 
-	leave(session, customer, if correct then "Happy" else "Sad")
+	local mood: Customer.Mood = if not correct
+		then "Sad"
+		elseif patience >= GameConfig.Orders.DelightedPatience then "Love"
+		else "Happy"
+	leave(session, customer, mood)
 end
 
 local function spawnCustomer(session: Session, spotIndex: number)
@@ -169,14 +202,20 @@ local function spawnCustomer(session: Session, spotIndex: number)
 		return
 	end
 
-	-- Orders never ask for more scoops than the player's cone can hold.
-	local maxScoops = math.min(CUSTOMER_TYPE.MaxScoops, PlayerStats.coneCapacity(data))
-	local order = { FlavorId = PlayerStats.activeFlavor(data), Scoops = random:NextInteger(1, maxScoops) }
+	-- Re-read data: it may have changed while the customer was walking.
+	local current = DataService.getData(session.player)
+	if current == nil then
+		return
+	end
+	local order = Orders.create(current, CUSTOMER_TYPE, CURRENT_NEIGHBORHOOD)
 	local prompt = Customer.showOrder(customer, order, CUSTOMER_TYPE.PatienceSeconds)
 	prompt.Triggered:Connect(function(player: Player)
 		onServe(session, customer, player)
 	end)
 	customer.patienceThread = task.delay(CUSTOMER_TYPE.PatienceSeconds, function()
+		-- Ran out of patience: no pay, combo broken, small Reputation hit.
+		setCombo(session.player, 0)
+		changeReputation(session.player, GameConfig.Reputation.CustomerLeft)
 		leave(session, customer, "Angry")
 	end)
 end
@@ -236,7 +275,10 @@ end
 function CustomerService.Start()
 	TruckService.TruckSpawned:Connect(startSession)
 	TruckService.TruckRemoved:Connect(endSession)
-	Players.PlayerRemoving:Connect(endSession)
+	Players.PlayerRemoving:Connect(function(player)
+		endSession(player)
+		combos[player] = nil
+	end)
 
 	-- Bigger serving capacity (upgrades, new truck tier) means more customers at once.
 	DataService.Changed:Connect(function(player: Player, path: { any })

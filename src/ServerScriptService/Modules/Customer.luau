@@ -6,8 +6,9 @@
 
 	Replicated to clients as attributes on the model (see docs/UI_CONTRACT.md):
 	  OwnerUserId, CustomerName, CustomerType, State ("Arriving" | "Waiting" | "Leaving"),
-	  OrderFlavor, OrderScoops, PatienceTotal, PatienceEnd (Workspace:GetServerTimeNow() time),
-	  Mood ("Happy" | "Sad" | "Angry", set when leaving)
+	  OrderFlavor, OrderScoops, OrderTopping (nil = no topping),
+	  PatienceTotal, PatienceEnd (Workspace:GetServerTimeNow() time),
+	  Mood ("Love" | "Happy" | "Sad" | "Angry", set when leaving)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,12 +19,14 @@ local Shared = ReplicatedStorage.Shared
 local Flavors = require(Shared.Data.Flavors)
 local GameConfig = require(Shared.Data.GameConfig)
 local GameData = require(Shared.Types.GameData)
+local Toppings = require(Shared.Data.Toppings)
 
 local CustomerRig = require(script.Parent.CustomerRig)
+local Orders = require(script.Parent.Orders)
 
 export type State = "Arriving" | "Waiting" | "Leaving"
-export type Mood = "Happy" | "Sad" | "Angry"
-export type Order = { FlavorId: string, Scoops: number }
+export type Mood = "Love" | "Happy" | "Sad" | "Angry"
+export type Order = Orders.Order
 
 export type Customer = {
 	owner: Player,
@@ -121,6 +124,7 @@ function Customer.showOrder(customer: Customer, order: Order, patienceSeconds: n
 	local model = customer.model
 	model:SetAttribute("OrderFlavor", order.FlavorId)
 	model:SetAttribute("OrderScoops", order.Scoops)
+	model:SetAttribute("OrderTopping", order.ToppingId)
 	model:SetAttribute("PatienceTotal", patienceSeconds)
 	model:SetAttribute("PatienceEnd", customer.patienceEnd)
 	Customer.setState(customer, "Waiting")
@@ -128,7 +132,8 @@ function Customer.showOrder(customer: Customer, order: Order, patienceSeconds: n
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "ServePrompt"
 	prompt.ActionText = "Serve"
-	prompt.ObjectText = `{order.Scoops}x {Flavors[order.FlavorId].DisplayName}`
+	local toppingText = if order.ToppingId then ` + {Toppings[order.ToppingId].DisplayName}` else ""
+	prompt.ObjectText = `{order.Scoops}x {Flavors[order.FlavorId].DisplayName}{toppingText}`
 	prompt.KeyboardKeyCode = Enum.KeyCode.F
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = GameConfig.CustomerFlow.PromptDistance

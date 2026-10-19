@@ -53,13 +53,32 @@ function PlayerStats.tipBonus(data: PlayerData): number
 	return Formulas.upgradeValue("TipBonus", level(data, "TipBonus"))
 end
 
--- The flavor the dispenser scoops and customers order. Stage 4 adds choosing between loadout slots.
-function PlayerStats.activeFlavor(data: PlayerData): string
-	local flavorId = data.Flavors.Loadout[1]
-	if flavorId and Flavors[flavorId] and data.Flavors.Unlocked[flavorId] then
-		return flavorId
+-- Number of flavor slots on the current truck.
+function PlayerStats.flavorSlots(data: PlayerData): number
+	return PlayerStats.truck(data).FlavorSlots
+end
+
+--[[
+	The flavors loaded in the truck, in slot order: only unlocked, existing,
+	non-duplicate flavors, at most flavorSlots of them, never empty.
+	Use this instead of reading data.Flavors.Loadout directly.
+]]
+function PlayerStats.loadout(data: PlayerData): { string }
+	local result: { string } = {}
+	local seen: { [string]: boolean } = {}
+	for _, flavorId in data.Flavors.Loadout do
+		if #result >= PlayerStats.flavorSlots(data) then
+			break
+		end
+		if Flavors[flavorId] and data.Flavors.Unlocked[flavorId] and not seen[flavorId] then
+			seen[flavorId] = true
+			table.insert(result, flavorId)
+		end
 	end
-	return GameConfig.Starting.Flavor
+	if #result == 0 then
+		table.insert(result, GameConfig.Starting.Flavor)
+	end
+	return result
 end
 
 -- Multiplier applied to every Coin the player earns.

@@ -86,6 +86,17 @@ Theme.Motion = {
 	CountUp = TweenInfo.new(0.5, Enum.EasingStyle.Quad),
 }
 
+--[[
+	Inner track of each bar sprite, as fractions of the sprite (X0, Y0, X1, Y1).
+	UILib.createSpriteBar covers the painted fill with an empty track and draws
+	a live fill inside this rectangle. Measured from assets/sprites/parts.
+]]
+Theme.BarTracks = {
+	PatienceBar = { 0.36, 0.605, 0.93, 0.85 },
+	ComboBar = { 0.235, 0.61, 0.925, 0.885 },
+	BarFrame = { 0.09, 0.53, 0.925, 0.86 },
+}
+
 -- ScreenGui DisplayOrder per layer: higher draws on top.
 Theme.Layers = {
 	Hud = 0,

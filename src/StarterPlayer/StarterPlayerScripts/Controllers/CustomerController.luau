@@ -2,9 +2,11 @@
 --[[
 	CustomerController
 	Client-side visuals for customers (the server runs the customers):
-	  * order bubble above YOUR waiting customers: name, flavor, scoops, patience bar
+	  * order bubble above YOUR waiting customers: name, flavor, scoop count,
+	    topping and a draining patience bar (clock bar sprite)
+	  * reaction emote when they leave: heart-eyes / happy / sad / angry
 	  * hides other players' Serve prompts
-	  * floating "+Coins" above a customer when they pay (OrderResult remote)
+	  * floating "+Coins" (and combo multiplier) above a customer who pays
 	Reads the customer model's attributes; see docs/UI_CONTRACT.md.
 ]]
 
@@ -14,51 +16,51 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage.Shared
+local Assets = require(Shared.Modules.Assets)
 local Flavors = require(Shared.Data.Flavors)
 local NumberFormat = require(Shared.Modules.NumberFormat)
 local Remotes = require(Shared.Modules.Remotes)
+local Toppings = require(Shared.Data.Toppings)
+
+local UI = script.Parent.Parent.UI
+local Cleaner = require(UI.Cleaner)
+local Theme = require(UI.Theme)
+local UILib = require(UI.UILib)
 
 local player = Players.LocalPlayer
+local Colors = Theme.Colors
 
-local FONT = Enum.Font.FredokaOne
-local OUTLINE = Color3.fromRGB(70, 45, 60)
-local PANEL = Color3.fromRGB(255, 250, 240)
-local PATIENCE_FULL = Color3.fromRGB(110, 210, 110)
-local PATIENCE_EMPTY = Color3.fromRGB(235, 80, 90)
+local EMOTE_SPRITES = {
+	Love = "EmoteLove",
+	Happy = "EmoteHappy",
+	Sad = "EmoteSad",
+	Angry = "EmoteAngry",
+}
+local EMOTE_SECONDS = 1.8
 
 local CustomerController = {}
 
 type Watch = {
-	bubble: BillboardGui?,
-	tweens: { Tween },
-	connections: { RBXScriptConnection },
+	bubble: Cleaner.Cleaner, -- the order bubble and its tween
+	all: Cleaner.Cleaner, -- connections and the emote, cleaned when the customer goes away
 }
 
 local watches: { [Model]: Watch } = {}
+local playerGui: PlayerGui
 
-local function addCorner(parent: GuiObject)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.3, 0)
-	corner.Parent = parent
+local function isMine(model: Model): boolean
+	return model:GetAttribute("OwnerUserId") == player.UserId
 end
 
-local function addStroke(parent: GuiObject, thickness: number)
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = thickness
-	stroke.Color = OUTLINE
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = parent
-end
-
-local function clearBubble(watch: Watch)
-	for _, tween in watch.tweens do
-		tween:Cancel()
-	end
-	table.clear(watch.tweens)
-	if watch.bubble then
-		watch.bubble:Destroy()
-		watch.bubble = nil
-	end
+local function createBillboard(adornee: BasePart, size: UDim2, offset: Vector3): BillboardGui
+	local billboard = Instance.new("BillboardGui")
+	billboard.Adornee = adornee
+	billboard.Size = size
+	billboard.StudsOffsetWorldSpace = offset
+	billboard.MaxDistance = 80
+	billboard.ResetOnSpawn = false
+	billboard.Parent = playerGui
+	return billboard
 end
 
 local function createBubble(model: Model, watch: Watch)
@@ -68,87 +70,106 @@ local function createBubble(model: Model, watch: Watch)
 		return
 	end
 	local scoops = (model:GetAttribute("OrderScoops") :: number?) or 1
+	local toppingId = model:GetAttribute("OrderTopping") :: string?
+	local topping = if toppingId then Toppings[toppingId] else nil
 	local total = (model:GetAttribute("PatienceTotal") :: number?) or 1
 	local patienceEnd = (model:GetAttribute("PatienceEnd") :: number?) or 0
 
-	local bubble = Instance.new("BillboardGui")
-	bubble.Name = "OrderBubble"
-	bubble.Adornee = root
-	bubble.Size = UDim2.fromScale(5, 2.6)
-	bubble.StudsOffsetWorldSpace = Vector3.new(0, 4.2, 0)
-	bubble.MaxDistance = 80
-	bubble.ResetOnSpawn = false
+	local billboard = watch.bubble:add(createBillboard(root, UDim2.fromScale(6, 3.4), Vector3.new(0, 4.6, 0)))
+	local outer, inner = UILib.createPanel(billboard, { Size = UDim2.fromScale(1, 1) })
+	outer.Name = "OrderBubble"
 
-	local panel = Instance.new("Frame")
-	panel.Size = UDim2.fromScale(1, 1)
-	panel.BackgroundColor3 = PANEL
-	addCorner(panel)
-	addStroke(panel, 3)
-	panel.Parent = bubble
+	UILib.createLabel(inner, {
+		Name = "CustomerName",
+		Position = UDim2.fromScale(0.05, 0.02),
+		Size = UDim2.fromScale(0.9, 0.22),
+		Text = (model:GetAttribute("CustomerName") :: string?) or "Customer",
+		TextColor3 = Colors.TextMuted,
+	})
 
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Size = UDim2.fromScale(0.9, 0.28)
-	nameLabel.Position = UDim2.fromScale(0.05, 0.04)
-	nameLabel.Font = FONT
-	nameLabel.TextScaled = true
-	nameLabel.TextColor3 = OUTLINE
-	nameLabel.Text = (model:GetAttribute("CustomerName") :: string?) or "Customer"
-	nameLabel.Parent = panel
+	-- Order row: [flavor] x2 [+ topping]
+	local row = UILib.createFrame(inner, {
+		Name = "Order",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.04, 0.24),
+		Size = UDim2.fromScale(0.92, 0.42),
+	})
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0.03, 0)
+	layout.Parent = row
 
-	-- Flavor "icon": a scoop-colored circle (swap for flavor.Icon once real icons exist).
-	local swatch = Instance.new("Frame")
-	swatch.Size = UDim2.fromScale(0.26, 0.36)
-	swatch.Position = UDim2.fromScale(0.06, 0.34)
-	swatch.BackgroundColor3 = flavor.Color
-	local aspect = Instance.new("UIAspectRatioConstraint")
-	aspect.Parent = swatch
-	local round = Instance.new("UICorner")
-	round.CornerRadius = UDim.new(0.5, 0)
-	round.Parent = swatch
-	addStroke(swatch, 2)
-	swatch.Parent = panel
+	local flavorIcon = UILib.createIcon(row, flavor.Icon, flavor.Color, nil, {
+		LayoutOrder = 1,
+		Size = UDim2.fromScale(0.3, 1),
+	})
+	UILib.addAspect(flavorIcon, 1)
+	UILib.createLabel(row, {
+		LayoutOrder = 2,
+		Size = UDim2.fromScale(0.26, 0.8),
+		Text = `x{scoops}`,
+	})
+	if topping then
+		UILib.createLabel(row, { LayoutOrder = 3, Size = UDim2.fromScale(0.1, 0.7), Text = "+" })
+		local toppingIcon = UILib.createIcon(row, topping.Icon, topping.Color, nil, {
+			LayoutOrder = 4,
+			Size = UDim2.fromScale(0.3, 1),
+		})
+		UILib.addAspect(toppingIcon, 1)
+	end
 
-	local orderLabel = Instance.new("TextLabel")
-	orderLabel.BackgroundTransparency = 1
-	orderLabel.Size = UDim2.fromScale(0.62, 0.36)
-	orderLabel.Position = UDim2.fromScale(0.34, 0.34)
-	orderLabel.Font = FONT
-	orderLabel.TextScaled = true
-	orderLabel.TextXAlignment = Enum.TextXAlignment.Left
-	orderLabel.TextColor3 = OUTLINE
-	orderLabel.Text = `{scoops}x {flavor.DisplayName}`
-	orderLabel.Parent = panel
+	-- Patience bar: drains from what's left to empty, green to red.
+	local bar = UILib.createSpriteBar(inner, "PatienceBar", Colors.Green, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 0.98),
+		Size = UDim2.fromScale(0.94, 0.32),
+	})
+	local now = Workspace:GetServerTimeNow()
+	local fraction = math.clamp((patienceEnd - now) / total, 0, 1)
+	bar.set(fraction)
+	local fill = bar.Frame:FindFirstChild("Fill", true) :: Frame?
+	if fill then
+		fill.BackgroundColor3 = Colors.Cherry:Lerp(Colors.Green, fraction)
+		local drain = TweenService:Create(
+			fill,
+			TweenInfo.new(math.max(patienceEnd - now, 0), Enum.EasingStyle.Linear),
+			{ Size = UDim2.fromScale(0, 1), BackgroundColor3 = Colors.Cherry }
+		)
+		drain:Play()
+		watch.bubble:add(drain)
+	end
+end
 
-	local barBack = Instance.new("Frame")
-	barBack.Size = UDim2.fromScale(0.88, 0.14)
-	barBack.Position = UDim2.fromScale(0.06, 0.78)
-	barBack.BackgroundColor3 = Color3.fromRGB(230, 220, 215)
-	addCorner(barBack)
-	barBack.Parent = panel
-
-	local fraction = math.clamp((patienceEnd - Workspace:GetServerTimeNow()) / total, 0, 1)
-	local remaining = math.max(patienceEnd - Workspace:GetServerTimeNow(), 0)
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.fromScale(fraction, 1)
-	fill.BackgroundColor3 = PATIENCE_EMPTY:Lerp(PATIENCE_FULL, fraction)
-	addCorner(fill)
-	fill.Parent = barBack
-
-	local drain = TweenService:Create(
-		fill,
-		TweenInfo.new(remaining, Enum.EasingStyle.Linear),
-		{ Size = UDim2.fromScale(0, 1), BackgroundColor3 = PATIENCE_EMPTY }
-	)
-	drain:Play()
-	table.insert(watch.tweens, drain)
-
-	bubble.Parent = player:WaitForChild("PlayerGui")
-	watch.bubble = bubble
+-- Pops an emote above the customer's head for a moment.
+local function showEmote(model: Model, watch: Watch, mood: string)
+	local root = model.PrimaryPart
+	local sprite = EMOTE_SPRITES[mood]
+	if root == nil or sprite == nil then
+		return
+	end
+	local billboard = watch.all:add(createBillboard(root, UDim2.fromScale(2.6, 2.6), Vector3.new(0, 4.4, 0)))
+	local icon =
+		UILib.createIcon(billboard, sprite, if mood == "Sad" or mood == "Angry" then Colors.Cherry else Colors.Pink)
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.3
+	scale.Parent = icon
+	TweenService:Create(scale, Theme.Motion.Open, { Scale = 1 }):Play()
+	task.delay(EMOTE_SECONDS, function()
+		if billboard.Parent then
+			local shrink = TweenService:Create(scale, Theme.Motion.Close, { Scale = 0 })
+			shrink.Completed:Connect(function()
+				billboard:Destroy()
+			end)
+			shrink:Play()
+		end
+	end)
 end
 
 local function hidePromptIfNotMine(model: Model, descendant: Instance)
-	if descendant:IsA("ProximityPrompt") and model:GetAttribute("OwnerUserId") ~= player.UserId then
+	if descendant:IsA("ProximityPrompt") and not isMine(model) then
 		descendant.Enabled = false
 	end
 end
@@ -157,24 +178,26 @@ local function onCustomerAdded(model: Instance)
 	if not model:IsA("Model") or watches[model] then
 		return
 	end
-	local watch: Watch = { bubble = nil, tweens = {}, connections = {} }
+	local watch: Watch = { bubble = Cleaner.new(), all = Cleaner.new() }
 	watches[model] = watch
 
 	local function refresh()
-		clearBubble(watch)
-		local isMine = model:GetAttribute("OwnerUserId") == player.UserId
-		if isMine and model:GetAttribute("State") == "Waiting" then
+		watch.bubble:clean()
+		if isMine(model) and model:GetAttribute("State") == "Waiting" then
 			createBubble(model, watch)
 		end
 	end
 
-	table.insert(watch.connections, model:GetAttributeChangedSignal("State"):Connect(refresh))
-	table.insert(
-		watch.connections,
-		model.DescendantAdded:Connect(function(descendant)
-			hidePromptIfNotMine(model, descendant)
-		end)
-	)
+	watch.all:add(model:GetAttributeChangedSignal("State"):Connect(refresh))
+	watch.all:add(model:GetAttributeChangedSignal("Mood"):Connect(function()
+		local mood = model:GetAttribute("Mood") :: string?
+		if mood and isMine(model) then
+			showEmote(model, watch, mood)
+		end
+	end))
+	watch.all:add(model.DescendantAdded:Connect(function(descendant)
+		hidePromptIfNotMine(model, descendant)
+	end))
 	for _, descendant in model:GetDescendants() do
 		hidePromptIfNotMine(model, descendant)
 	end
@@ -183,18 +206,15 @@ end
 
 local function onCustomerRemoved(model: Instance)
 	local watch = watches[model :: Model]
-	if watch == nil then
-		return
+	if watch then
+		watch.bubble:clean()
+		watch.all:clean()
+		watches[model :: Model] = nil
 	end
-	clearBubble(watch)
-	for _, connection in watch.connections do
-		connection:Disconnect()
-	end
-	watches[model :: Model] = nil
 end
 
--- Floating "+12" above the customer who just paid.
-local function showCoinPopup(position: Vector3, coins: number, correct: boolean)
+-- Floating "+12" (and "x1.3" during a combo) above the customer who just paid.
+local function showCoinPopup(position: Vector3, coins: number, correct: boolean, comboMultiplier: number?)
 	local anchor = Instance.new("Part")
 	anchor.Name = "CoinPopupAnchor"
 	anchor.Anchored = true
@@ -208,31 +228,25 @@ local function showCoinPopup(position: Vector3, coins: number, correct: boolean)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Adornee = anchor
-	billboard.Size = UDim2.fromScale(4, 1.5)
+	billboard.Size = UDim2.fromScale(5, 1.6)
 	billboard.AlwaysOnTop = true
 	billboard.Parent = anchor
 
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = FONT
-	label.TextScaled = true
-	label.TextColor3 = if correct then Color3.fromRGB(255, 215, 70) else Color3.fromRGB(255, 160, 90)
-	label.TextStrokeColor3 = OUTLINE
-	label.TextStrokeTransparency = 0
-	label.Text = `+{NumberFormat.short(coins)}`
-	label.Parent = billboard
+	local combo = if comboMultiplier and comboMultiplier > 1 then string.format("  x%.1f", comboMultiplier) else ""
+	local label = UILib.createLabel(billboard, {
+		Text = `+{NumberFormat.short(coins)}{combo}`,
+	})
+	UILib.outlinedText(label)
+	label.TextColor3 = if correct then Colors.Coin else Colors.Orange
 
+	UILib.playSound(Assets.SFX_CASH_REGISTER)
 	local rise = TweenService:Create(billboard, TweenInfo.new(1.2, Enum.EasingStyle.Quad), {
 		StudsOffsetWorldSpace = Vector3.new(0, 3, 0),
 	})
 	local fade = TweenService:Create(
 		label,
 		TweenInfo.new(0.6, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0.6),
-		{
-			TextTransparency = 1,
-			TextStrokeTransparency = 1,
-		}
+		{ TextTransparency = 1, TextStrokeTransparency = 1 }
 	)
 	rise.Completed:Connect(function()
 		anchor:Destroy()
@@ -241,7 +255,9 @@ local function showCoinPopup(position: Vector3, coins: number, correct: boolean)
 	fade:Play()
 end
 
-function CustomerController.Init() end
+function CustomerController.Init()
+	playerGui = player:WaitForChild("PlayerGui") :: PlayerGui
+end
 
 function CustomerController.Start()
 	local folder = Workspace:WaitForChild("Customers")

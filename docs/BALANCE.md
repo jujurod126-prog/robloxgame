@@ -64,3 +64,21 @@ next level cost = round(BaseCost * CostGrowth ^ (currentLevel - 1))
 Tuning levers if playtests are off: `Flavors.Vanilla.CoinValue` (the others scale with it),
 `Neighborhoods.BeachBoardwalk.UnlockCost`, each upgrade's `BaseCost` / `CostGrowth`, and the
 customer flow timings in `GameConfig.CustomerFlow`.
+
+## Orders, toppings and combo (Stage 4)
+
+```
+correct order = scoop value × topping multiplier × customer pay × area pay
+                × area preference bonus (if it matches) × topping pay bonus (if it has a topping)
+                × combo multiplier, then + tip
+wrong order   = scoop value × topping multiplier × customer pay × area pay × 40%, no tip, combo resets
+```
+
+- **Combo:** x1.1 at 5 correct orders in a row, +0.1 per order after that, capped at x2 (14 in a row).
+  A wrong order or a customer running out of patience resets it.
+- **Toppings:** Sprinkles x1.1 (100 Coins) up to Gold Flakes x2 (1.5M). About 30% of Regular orders ask
+  for a topping once you own one, so toppings are the next big income step after the first upgrades.
+- **Reputation:** +0.02 per correct order, -0.03 per wrong one, -0.1 when a customer leaves angry (1 to 5 stars,
+  starting at 3). More customer types unlock with stars in Stage 5.
+
+The time-to-afford table above doesn't include toppings or combo yet. They make real income a bit higher than the model.
