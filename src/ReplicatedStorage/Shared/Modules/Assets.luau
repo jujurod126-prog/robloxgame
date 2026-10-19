@@ -18,10 +18,10 @@ local Assets = {
 	-- ===== Sprite sheets (assets/sprites/SpriteSheet1-4.png) =====
 	-- Upload each PNG (Asset Manager -> Images), then paste its ID here.
 	-- Pets, eggs, trucks, rarity frames, upgrade icons, toppings, emotes and bars come from these.
-	SPRITE_SHEET_1 = PLACEHOLDER_ASSET,
-	SPRITE_SHEET_2 = PLACEHOLDER_ASSET,
-	SPRITE_SHEET_3 = PLACEHOLDER_ASSET,
-	SPRITE_SHEET_4 = PLACEHOLDER_ASSET,
+	SPRITE_SHEET_1 = "rbxassetid://93674262825182",
+	SPRITE_SHEET_2 = "rbxassetid://98698696017955",
+	SPRITE_SHEET_3 = "rbxassetid://125933533301739",
+	SPRITE_SHEET_4 = "rbxassetid://112748176370296",
 
 	-- ===== Currency & HUD icons =====
 	ICON_COIN = PLACEHOLDER_ASSET,
