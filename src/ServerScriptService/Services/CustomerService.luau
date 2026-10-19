@@ -24,6 +24,7 @@ local GameConfig = require(Shared.Data.GameConfig)
 local GameData = require(Shared.Types.GameData)
 local Neighborhoods = require(Shared.Data.Neighborhoods)
 local PlayerStats = require(Shared.Modules.PlayerStats)
+local RebirthRules = require(Shared.Modules.RebirthRules)
 local Remotes = require(Shared.Modules.Remotes)
 local Toppings = require(Shared.Data.Toppings)
 
@@ -253,6 +254,9 @@ function fill(session: Session)
 		return
 	end
 	local capacity = capacityFor(session)
+	-- Faster Customers skill: shorter wait before the next customer walks up.
+	local data = DataService.getData(session.player)
+	local speedUp = 1 + (if data then RebirthRules.skillValue(data, "FasterCustomers") else 0)
 	local occupied = 0
 	for _ in session.spots do
 		occupied += 1
@@ -264,7 +268,8 @@ function fill(session: Session)
 		if session.spots[spotIndex] == nil then
 			session.spots[spotIndex] = true
 			occupied += 1
-			task.delay(random:NextNumber(flow.ArriveDelayMin, flow.ArriveDelayMax), spawnCustomer, session, spotIndex)
+			local delay = random:NextNumber(flow.ArriveDelayMin, flow.ArriveDelayMax) / speedUp
+			task.delay(delay, spawnCustomer, session, spotIndex)
 		end
 	end
 end

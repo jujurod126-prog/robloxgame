@@ -116,3 +116,16 @@ and Tips add to the Tip Bonus.
 - 3 pet slots to start (+1 and +2 from the Extra Pet Slot rebirth skill in Stage 7), 100 pets max.
 - Merge 5 unlocked normal copies of a pet into 1 golden one (2.5x boost).
 - Example: 3 Penguins (+5% Coins each) = +15% Coins. One Golden Penguin = +12.5%.
+
+## Rebirth, skills, quests, daily rewards (Stage 7)
+
+- **Rebirth** needs 2.5M Coins, then x1.5 each time (3.75M, 5.6M, ...). Each rebirth gives a permanent
+  +25% Coins (x1.25, x1.5, x1.75 ...) and 1 Rebirth Token. It resets Coins (to the Starting Coins skill),
+  truck tier and upgrades, and keeps everything else.
+- **Skills** (Tokens): Faster Customers (+10% to +50% arrival speed), Starting Coins (500 to 250K),
+  Bigger Tips (+10% to +50%, needs Faster Customers 1), Longer Rush Hour (+10s to +50s, needs Faster
+  Customers 2, takes effect in Stage 8), Extra Pet Slot (+1/+2, needs Starting Coins 2).
+- **Daily quests**: 3 a day, re-rolled at 00:00 UTC, each at a random easy/medium/hard tier.
+- **Daily login**: claim every 20 hours. Missing more than 48 hours resets the streak. Day 7 gives
+  50 Gems and a Rainbow Egg, then the calendar loops.
+- **Achievements**: 8, each with a Gem reward and an optional badge.

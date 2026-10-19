@@ -53,6 +53,11 @@ DataController.Changed:Connect(function(path, value) ... end)
 | `DeletePet` | RemoteFunction | Client → Server | `petGuid: string` (not if locked) | `{ Ok, Message }` | Purchase limit | 6 |
 | `SetPetLocked` | RemoteFunction | Client → Server | `petGuid: string, locked: boolean` | `{ Ok, Message }` | Purchase limit | 6 |
 | `MergePets` | RemoteFunction | Client → Server | `petId: string` (needs 5 unlocked Normal copies; unequipped ones are used first) | `{ Ok, Message }` | Purchase limit | 6 |
+| `Rebirth` | RemoteFunction | Client → Server | none (needs Coins ≥ `RebirthRules.requirement`) | `{ Ok, Message }` | Purchase limit | 7 |
+| `BuySkill` | RemoteFunction | Client → Server | `skillId: string` (prerequisites and Tokens checked) | `{ Ok, Message }` | Purchase limit | 7 |
+| `ClaimQuest` | RemoteFunction | Client → Server | `questIndex: number` (1-3, today's quests) | `{ Ok, Message }` | Purchase limit | 7 |
+| `ClaimDaily` | RemoteFunction | Client → Server | none | `{ Ok, Message, Pets? }` (Pets when the day's reward includes an egg) | Purchase limit | 7 |
+| `ClaimAchievement` | RemoteFunction | Client → Server | `achievementId: string` | `{ Ok, Message }` | Purchase limit | 7 |
 
 *Later stages add rows here, for example
 `UnlockFlavor(flavorId)` and `HatchEgg(eggId, count)`.*

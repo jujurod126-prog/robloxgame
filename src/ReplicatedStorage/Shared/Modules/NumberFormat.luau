@@ -31,4 +31,20 @@ function NumberFormat.short(value: number): string
 	return text .. SUFFIXES[index]
 end
 
+-- 0 -> "0s", 75 -> "1m 15s", 19000 -> "5h 16m", 200000 -> "2d 7h"
+function NumberFormat.duration(seconds: number): string
+	local total = math.max(0, math.floor(seconds))
+	local days = total // 86400
+	local hours = (total % 86400) // 3600
+	local minutes = (total % 3600) // 60
+	if days > 0 then
+		return `{days}d {hours}h`
+	elseif hours > 0 then
+		return `{hours}h {minutes}m`
+	elseif minutes > 0 then
+		return `{minutes}m {total % 60}s`
+	end
+	return `{total}s`
+end
+
 return NumberFormat

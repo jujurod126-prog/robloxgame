@@ -42,6 +42,16 @@ function EconomyService.awardCoins(player: Player, baseAmount: number): number
 	return amount
 end
 
+-- Gives a fixed number of Coins with no multipliers (quest / login rewards). Returns Coins added.
+function EconomyService.grantCoins(player: Player, amount: number): number
+	assert(isValidAmount(amount), "grantCoins needs a finite, non-negative amount")
+	amount = math.floor(amount)
+	if amount == 0 or DataService.increment(player, { "Coins" }, amount) == nil then
+		return 0
+	end
+	return amount
+end
+
 -- Gives Gems (no multipliers). Returns the Gems added.
 function EconomyService.awardGems(player: Player, amount: number): number
 	assert(isValidAmount(amount), "awardGems needs a finite, non-negative amount")

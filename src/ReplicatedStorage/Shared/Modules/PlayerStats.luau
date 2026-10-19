@@ -13,6 +13,7 @@ local Formulas = require(script.Parent.Formulas)
 local GameConfig = require(Shared.Data.GameConfig)
 local GameData = require(Shared.Types.GameData)
 local PetRules = require(script.Parent.PetRules)
+local RebirthRules = require(script.Parent.RebirthRules)
 local PlayerDataTypes = require(Shared.Types.PlayerData)
 local Trucks = require(Shared.Data.Trucks)
 
@@ -54,9 +55,11 @@ function PlayerStats.walkSpeed(data: PlayerData): number
 		* (1 + petBoost)
 end
 
--- Extra tip fraction from the Tip Bonus upgrade (0.1 = +10%).
+-- Extra tip fraction: Tip Bonus upgrade + pets + Bigger Tips skill (0.1 = +10%).
 function PlayerStats.tipBonus(data: PlayerData): number
-	return Formulas.upgradeValue("TipBonus", level(data, "TipBonus")) + PetRules.totalBoosts(data).TipBonus
+	return Formulas.upgradeValue("TipBonus", level(data, "TipBonus"))
+		+ PetRules.totalBoosts(data).TipBonus
+		+ RebirthRules.skillValue(data, "BiggerTips")
 end
 
 -- Number of flavor slots on the current truck.

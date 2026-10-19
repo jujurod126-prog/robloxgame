@@ -93,6 +93,7 @@ These only work in Studio and are typed into chat:
 | `/coins <n>`     | Add n Coins (negative to remove)          |
 | `/gems <n>`      | Add n Gems                                |
 | `/rep <stars>`   | Set your Reputation (1-5) to test special customers |
+| `/skipday`       | Pretend a day passed (daily reward ready, new quests within a minute) |
 | `/wipe`          | Reset your data to a brand-new player     |
 
 ## Art (sprite sheets)

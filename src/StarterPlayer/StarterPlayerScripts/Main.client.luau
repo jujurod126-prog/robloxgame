@@ -25,6 +25,7 @@ local CONTROLLER_ORDER: { ModuleScript } = {
 	Controllers.PetFollowController,
 	Controllers.RebirthController,
 	Controllers.QuestController,
+	Controllers.DailyRewardController,
 	Controllers.TutorialController,
 }
 

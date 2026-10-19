@@ -30,6 +30,11 @@ export type FunctionName =
 	| "DeletePet"
 	| "SetPetLocked"
 	| "MergePets"
+	| "Rebirth"
+	| "BuySkill"
+	| "ClaimQuest"
+	| "ClaimDaily"
+	| "ClaimAchievement"
 
 -- Add new names to BOTH the type above and the list below.
 local EVENT_NAMES: { EventName } = {
@@ -53,6 +58,11 @@ local FUNCTION_NAMES: { FunctionName } = {
 	"DeletePet", -- Client -> Server: (petGuid: string) -> PurchaseResult
 	"SetPetLocked", -- Client -> Server: (petGuid: string, locked: boolean) -> PurchaseResult
 	"MergePets", -- Client -> Server: (petId: string) -> PurchaseResult (5 normal copies -> 1 golden)
+	"Rebirth", -- Client -> Server: () -> PurchaseResult
+	"BuySkill", -- Client -> Server: (skillId: string) -> PurchaseResult
+	"ClaimQuest", -- Client -> Server: (questIndex: number) -> PurchaseResult
+	"ClaimDaily", -- Client -> Server: () -> HatchResult (Pets set when the reward includes an egg)
+	"ClaimAchievement", -- Client -> Server: (achievementId: string) -> PurchaseResult
 }
 
 -- What HatchEgg returns: the pets that came out, in order, for the hatch animation.

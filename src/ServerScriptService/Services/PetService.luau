@@ -256,6 +256,31 @@ local function mergePets(player: Player, petId: unknown): PurchaseResult
 	return { Ok = true, Message = `Golden {Pets[id].DisplayName} created!` }
 end
 
+-- ===== Public API =====
+
+--[[
+	Gives one free hatch of an egg (rewards). Returns the pet, or nil if the
+	inventory is full (the caller decides what to do instead).
+]]
+function PetService.grantEgg(player: Player, eggId: string): Remotes.HatchedPet?
+	local data = DataService.getData(player)
+	if data == nil or Eggs[eggId] == nil or PetRules.inventoryCount(data) >= GameConfig.Pets.MaxInventory then
+		return nil
+	end
+	local petId = rollPet(eggId)
+	local petGuid = addPet(player, petId, "Normal")
+	DataService.increment(player, { "Stats", "EggsHatched" }, 1)
+	local current = DataService.getData(player)
+	if current then
+		local equipped = PetRules.equipped(current)
+		if #equipped < PetRules.equipSlots(current) then
+			table.insert(equipped, petGuid)
+			setEquipped(player, equipped)
+		end
+	end
+	return { Guid = petGuid, PetId = petId, Variant = "Normal" }
+end
+
 -- ===== Lifecycle =====
 
 function PetService.Init() end

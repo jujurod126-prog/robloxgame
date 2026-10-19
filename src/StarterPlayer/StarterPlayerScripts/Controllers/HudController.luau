@@ -11,6 +11,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -21,6 +22,8 @@ local Neighborhoods = require(Shared.Data.Neighborhoods)
 local NumberFormat = require(Shared.Modules.NumberFormat)
 local FlavorRules = require(Shared.Modules.FlavorRules)
 local PetRules = require(Shared.Modules.PetRules)
+local QuestRules = require(Shared.Modules.QuestRules)
+local RebirthRules = require(Shared.Modules.RebirthRules)
 local ShopRules = require(Shared.Modules.ShopRules)
 
 local UI = script.Parent.Parent.UI
@@ -248,6 +251,10 @@ local function watchDots()
 		local data = DataController.getData()
 		HudController.setDot("Shop", data ~= nil and ShopRules.hasAffordable(data))
 		HudController.setDot("Flavors", data ~= nil and FlavorRules.hasAffordable(data))
+		local now = Workspace:GetServerTimeNow()
+		HudController.setDot("Rebirth", data ~= nil and RebirthRules.hasSomethingToDo(data))
+		HudController.setDot("Quests", data ~= nil and QuestRules.anyQuestClaimable(data, now))
+		HudController.setDot("Daily", data ~= nil and QuestRules.dailyStatus(data, now).CanClaim)
 		-- Nudge new players toward their first egg.
 		HudController.setDot(
 			"Pets",
@@ -265,12 +272,23 @@ local function watchDots()
 			or key == "Flavors"
 			or key == "Toppings"
 			or key == "Pets"
+			or key == "Quests"
+			or key == "Achievements"
+			or key == "Daily"
+			or key == "Stats"
+			or key == "RebirthTokens"
+			or key == "Skills"
 		then
 			update()
 		end
 	end)
 	DataController.waitForData()
 	update()
+	-- Time-based dots (daily reward cooldown, quest day change) need a gentle re-check.
+	while true do
+		task.wait(30)
+		update()
+	end
 end
 
 function HudController.Init()

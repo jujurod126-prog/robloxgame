@@ -7,6 +7,7 @@
 	/coins <amount>  add Coins (negative to remove)
 	/gems <amount>   add Gems
 	/rep <stars>     set your Reputation (1 - 5), to test special customers
+	/skipday         pretend a day passed: daily reward claimable, new quests within a minute
 	/wipe            reset your data to a brand-new player
 
 	Requires the place to use TextChatService (the default for new places).
@@ -84,12 +85,24 @@ function DevCommandsService.Start()
 		end
 	end)
 
+	addCommand("skipday", function(player)
+		local data = DataService.getData(player)
+		if data then
+			local claimHours = GameConfig.Daily.ClaimCooldownHours
+			if data.Daily.LastClaimTime > 0 then
+				DataService.set(player, { "Daily", "LastClaimTime" }, os.time() - claimHours * 3600 - 1)
+			end
+			DataService.set(player, { "Quests", "DayKey" }, 0) -- re-rolled on the next check
+			print(`[Dev] {player.Name}: skipped a day`)
+		end
+	end)
+
 	addCommand("wipe", function(player)
 		DataService.resetData(player)
 		print(`[Dev] {player.Name}'s data was reset`)
 	end)
 
-	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /rep <stars>, /wipe")
+	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /rep <stars>, /skipday, /wipe")
 end
 
 return DevCommandsService
