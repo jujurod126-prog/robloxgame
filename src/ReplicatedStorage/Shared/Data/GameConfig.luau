@@ -27,14 +27,18 @@ local GameConfig = {
 	},
 
 	Trucks = {
-		-- Each player's truck parks on its own lot. Lot 1 is at LotOrigin, then
-		-- alternating right/left: +1, -1, +2, -2 ... times LotSpacing along X.
-		LotOrigin = Vector3.new(0, 0, 60),
+		-- Each player's truck parks on its own lot in the neighborhood they're in.
+		-- Lots sit on the area's lot row (WorldLayout.LotRowZ): lot 1 in the middle,
+		-- then alternating right/left: +1, -1, +2, -2 ... times LotSpacing along X.
 		LotSpacing = 45,
-		MaxLots = 12,
+		MaxLots = 8, -- per neighborhood (more than a full server needs)
 		-- Trucks face -Z: customers line up on that side, the player stands behind (+Z).
 		CounterGap = 3.5, -- studs between the truck's front face and the customer line
 		StandGap = 3, -- studs behind the truck where the player appears
+	},
+
+	Travel = {
+		PadCooldown = 2, -- seconds before the same player can use a teleport pad again
 	},
 
 	Scooping = {

@@ -59,6 +59,7 @@ export type PlayerData = {
 	},
 	Neighborhoods: {
 		Unlocked: { [string]: boolean },
+		Current: string, -- where the player was last (Hub or a neighborhood id); they come back here
 	},
 	Pets: {
 		Inventory: { [string]: PetInstance }, -- key = unique pet GUID

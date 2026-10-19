@@ -133,10 +133,95 @@ local function randomizeLook(model: Model)
 	end
 end
 
--- Takes a rig from the pool (or builds one), freshly randomized. Caller positions and parents it.
-function CustomerRig.acquire(): Model
+-- Body scale per customer type (kids are smaller).
+local TYPE_SCALE: { [string]: number } = {
+	Kid = 0.72,
+}
+
+-- Height of Root's center above the ground for a customer type.
+function CustomerRig.rootHeight(typeId: string): number
+	return CustomerRig.ROOT_HEIGHT * (TYPE_SCALE[typeId] or 1)
+end
+
+-- Adds one costume part welded to Root, positioned relative to Root (unscaled units).
+local function addCostume(model: Model, size: Vector3, offset: CFrame, color: Color3, shape: Enum.PartType?)
+	local root = model.PrimaryPart :: BasePart
+	local part = addPart(model, root, "Costume", size, offset, shape)
+	part.Color = color
+end
+
+-- Type-specific outfits, built at normal size before the rig is scaled.
+local COSTUMES: { [string]: (Model) -> () } = {
+	Kid = function(model)
+		local cap = pick(OUTFIT_COLORS)
+		addCostume(model, Vector3.new(1.7, 0.5, 1.7), CFrame.new(0, 2.75, 0), cap)
+		addCostume(model, Vector3.new(1.2, 0.15, 0.8), CFrame.new(0, 2.55, -1), cap)
+	end,
+	Tourist = function(model)
+		local straw = Color3.fromRGB(235, 205, 130)
+		addCostume(
+			model,
+			Vector3.new(0.2, 3, 3),
+			CFrame.new(0, 2.7, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			straw,
+			Enum.PartType.Cylinder
+		)
+		addCostume(
+			model,
+			Vector3.new(0.8, 1.5, 1.5),
+			CFrame.new(0, 3, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			straw,
+			Enum.PartType.Cylinder
+		)
+		addCostume(model, Vector3.new(0.9, 0.6, 0.4), CFrame.new(0, 0.6, -0.65), Color3.fromRGB(40, 40, 50))
+	end,
+	Influencer = function(model)
+		addCostume(model, Vector3.new(1.3, 0.35, 0.2), CFrame.new(0, 2.15, -0.8), Color3.fromRGB(30, 25, 35))
+		addCostume(model, Vector3.new(0.5, 0.9, 0.15), CFrame.new(1.3, 0.9, -0.5), Color3.fromRGB(255, 120, 190))
+	end,
+	VIP = function(model)
+		local black = Color3.fromRGB(35, 30, 40)
+		addCostume(
+			model,
+			Vector3.new(0.2, 2.2, 2.2),
+			CFrame.new(0, 2.75, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			black,
+			Enum.PartType.Cylinder
+		)
+		addCostume(
+			model,
+			Vector3.new(1.6, 1.2, 1.2),
+			CFrame.new(0, 3.4, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			black,
+			Enum.PartType.Cylinder
+		)
+		addCostume(model, Vector3.new(0.7, 0.35, 0.2), CFrame.new(0, 1.1, -0.55), Color3.fromRGB(255, 200, 60))
+	end,
+}
+
+--[[
+	Takes a rig from the pool (or builds one), dressed and sized for the customer
+	type. Caller positions (at rootHeight(typeId)) and parents it.
+]]
+function CustomerRig.acquire(typeId: string): Model
 	local model = table.remove(pool) or createRig()
 	randomizeLook(model)
+	if model.Name == "Customer" and model:FindFirstChild("Legs") then -- only dress the built-in rig
+		local costume = COSTUMES[typeId]
+		if costume then
+			costume(model)
+		end
+		if typeId == "VIP" then
+			local suit = Color3.fromRGB(45, 40, 55)
+			for _, name in { "Torso", "Legs" } do
+				(model:FindFirstChild(name) :: BasePart).Color = suit
+			end
+		end
+	end
+	local scale = TYPE_SCALE[typeId] or 1
+	if scale ~= 1 then
+		model:ScaleTo(scale)
+	end
 	return model
 end
 
@@ -145,6 +230,14 @@ function CustomerRig.release(model: Model)
 	model.Parent = nil
 	for name in model:GetAttributes() do
 		model:SetAttribute(name, nil)
+	end
+	for _, child in model:GetChildren() do
+		if child.Name == "Costume" then
+			child:Destroy()
+		end
+	end
+	if model:GetScale() ~= 1 then
+		model:ScaleTo(1)
 	end
 	local root = model.PrimaryPart
 	if root then

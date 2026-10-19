@@ -53,7 +53,8 @@ src/
   ServerScriptService/
     Main.server.luau   boots every service (Init, then Start)
     Services/  DataService (saving + sync) and stubs for later stages
-    Modules/   DataTemplate, DataMigrations, RateLimiter, GameDataValidation
+    Modules/   DataTemplate, DataMigrations, RateLimiter, GameDataValidation, Orders,
+               Customer/CustomerRig/CustomerPicker, World/ (WorldBuilder + Props)
     Packages/  ProfileStore (vendored, unmodified, see third_party/)
   StarterPlayer/StarterPlayerScripts/
     Main.client.luau   boots every controller
@@ -63,6 +64,15 @@ docs/
   UI_CONTRACT.md   remotes, their arguments, the PlayerData shape and how it syncs
   BALANCE.md       upgrade costs and time-to-afford table
 ```
+
+## The world
+
+`WorldBuilder` builds the Hub and the 5 neighborhood islands from `Shared/Data/WorldLayout.luau`
+(where each area is) every time the server starts. To use your own map instead, build it in
+Studio inside a Folder named **`World`** in Workspace. Then the generated one is skipped. Keep the
+tags described at the top of `ServerScriptService/Modules/World/WorldBuilder.luau`: `TravelPad`
+parts, `Gate_<id>` models, and `SignText` / `OpensWindow` attributes. Also keep each area's
+`LotRowZ` row free for trucks.
 
 ## Code rules
 

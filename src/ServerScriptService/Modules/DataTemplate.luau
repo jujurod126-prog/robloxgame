@@ -66,6 +66,7 @@ local template: PlayerData = {
 	},
 	Neighborhoods = {
 		Unlocked = { Hub = true, [GameConfig.Starting.Neighborhood] = true },
+		Current = GameConfig.Starting.Neighborhood,
 	},
 	Pets = {
 		Inventory = {},

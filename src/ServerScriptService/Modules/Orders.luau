@@ -57,7 +57,18 @@ end
 
 local function pickFlavor(data: PlayerData, customer: GameData.CustomerDef, area: GameData.NeighborhoodDef): string
 	local options = PlayerStats.loadout(data)
-	if customer.MinFlavorRarity then
+	if customer.DemandsRarity then
+		-- VIP Critics only accept one rarity (CustomerPicker makes sure the truck has one).
+		local demanded = {}
+		for _, flavorId in options do
+			if Flavors[flavorId].Rarity == customer.DemandsRarity then
+				table.insert(demanded, flavorId)
+			end
+		end
+		if #demanded > 0 then
+			options = demanded
+		end
+	elseif customer.MinFlavorRarity then
 		local minOrder = Rarities[customer.MinFlavorRarity].Order
 		local fancy = {}
 		for _, flavorId in options do

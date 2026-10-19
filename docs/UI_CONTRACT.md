@@ -63,8 +63,15 @@ except the owner.
 | `ScoopPrompt` ("Scoop", key E, hold) | `Workspace.Trucks.Truck_<UserId>.Dispenser` | Truck owner | Within range, scoop cooldown (hold time × 0.85), cone not full |
 | `ServePrompt` ("Serve", key F) | `Workspace.Customers.Customer.Root` | Customer's owner | Customer is waiting, within 16 studs, cone not empty |
 
+| `UnlockPrompt` ("Unlock for X", hold) | `Workspace.World.Hub.Gate_<id>.Barrier` | Anyone | `NeighborhoodRules`: previous area unlocked, Rebirths, Coins (via `EconomyService.trySpend`) |
+| `WindowPrompt` (Hub counters) | parts with attribute `OpensWindow` | Anyone (client only opens a window) | Nothing to check |
+
+**Teleport pads** (`TravelPad` parts with attribute `TravelTo`) work on touch. The server checks
+`NeighborhoodRules.canEnter` and a 2 second cooldown, then moves your truck and you.
+
 The client hides other players' prompts locally. On touch-only devices it turns the scoop
-prompt's hold into a tap.
+prompt's hold into a tap. Gates you've unlocked turn see-through and walk-through, but only
+on your screen. The server still checks access at the pad.
 
 ## Replicated attributes (live, not saved)
 
@@ -78,8 +85,9 @@ prompt's hold into a tap.
 | `ConeTopping` | string? | Topping on the cone, or no attribute when there isn't one |
 | `ActiveSlot`, `ActiveFlavor` | number, string | Which loaded flavor the dispenser scoops |
 | `Combo` | number | Correct orders in a row (set by CustomerService; 0 after a wrong or lost customer) |
+| `Neighborhood` | string | The area you're in: `"Hub"` or a neighborhood id. Drives lighting, music and the HUD name |
 
-**On each truck model** in `Workspace.Trucks`: `OwnerUserId`, `OwnerName`, `Tier`,
+**On each truck model** in `Workspace.Trucks`: `OwnerUserId`, `OwnerName`, `Tier`, `Neighborhood`,
 `CounterZ`, `StandZ` and `Width`. The dispenser prompt also has a `ScoopSeconds` attribute.
 
 **On each customer model** in `Workspace.Customers`:
@@ -87,7 +95,7 @@ prompt's hold into a tap.
 | Attribute | Type | Meaning |
 |-----------|------|---------|
 | `OwnerUserId` | number | The player this customer belongs to |
-| `CustomerName`, `CustomerType` | string | Display name; key into `Shared/Data/Customers` |
+| `CustomerName`, `CustomerType` | string | Display name (special types are prefixed, e.g. "Tourist Ava"); key into `Shared/Data/Customers` |
 | `State` | string | `"Arriving"`, `"Waiting"` or `"Leaving"` |
 | `OrderFlavor`, `OrderScoops`, `OrderTopping` | string, number, string? | The order (set before `State` becomes `"Waiting"`; no `OrderTopping` = no topping) |
 | `PatienceTotal`, `PatienceEnd` | number | Seconds of patience, and the `Workspace:GetServerTimeNow()` time it runs out |
@@ -117,7 +125,7 @@ Flavors
   Unlocked         { [flavorId]: true }
   Loadout          { flavorId } (one per truck flavor slot, in order)
 Toppings.Unlocked  { [toppingId]: true }
-Neighborhoods.Unlocked { [neighborhoodId]: true }
+Neighborhoods      { Unlocked: { [neighborhoodId]: true }, Current: last neighborhood you were in }
 Pets
   Inventory        { [petGuid]: { PetId, Variant: "Normal" | "Golden", Locked } }
   Equipped         { petGuid }

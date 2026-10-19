@@ -7,6 +7,7 @@
 	  * reaction emote when they leave: heart-eyes / happy / sad / angry
 	  * hides other players' Serve prompts
 	  * floating "+Coins" (and combo multiplier) above a customer who pays
+	  * a camera flash when an Influencer reaches your counter
 	Reads the customer model's attributes; see docs/UI_CONTRACT.md.
 ]]
 
@@ -17,6 +18,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage.Shared
 local Assets = require(Shared.Modules.Assets)
+local Customers = require(Shared.Data.Customers)
 local Flavors = require(Shared.Data.Flavors)
 local NumberFormat = require(Shared.Modules.NumberFormat)
 local Remotes = require(Shared.Modules.Remotes)
@@ -47,6 +49,13 @@ type Watch = {
 
 local watches: { [Model]: Watch } = {}
 local playerGui: PlayerGui
+local flashFrame: Frame
+
+-- Quick white screen flash, like a phone camera.
+local function cameraFlash()
+	flashFrame.BackgroundTransparency = 0.35
+	TweenService:Create(flashFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad), { BackgroundTransparency = 1 }):Play()
+end
 
 local function isMine(model: Model): boolean
 	return model:GetAttribute("OwnerUserId") == player.UserId
@@ -185,6 +194,10 @@ local function onCustomerAdded(model: Instance)
 		watch.bubble:clean()
 		if isMine(model) and model:GetAttribute("State") == "Waiting" then
 			createBubble(model, watch)
+			local def = Customers[model:GetAttribute("CustomerType") :: string]
+			if def and def.CameraFlash then
+				cameraFlash()
+			end
 		end
 	end
 
@@ -257,6 +270,15 @@ end
 
 function CustomerController.Init()
 	playerGui = player:WaitForChild("PlayerGui") :: PlayerGui
+	local gui = UILib.createScreenGui("CameraFlash", Theme.Layers.Notification)
+	gui.IgnoreGuiInset = true
+	gui.ScreenInsets = Enum.ScreenInsets.None -- cover the whole screen
+	flashFrame = UILib.createFrame(gui, {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+	})
+	gui.Parent = playerGui
 end
 
 function CustomerController.Start()

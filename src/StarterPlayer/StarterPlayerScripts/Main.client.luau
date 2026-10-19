@@ -16,6 +16,8 @@ local CONTROLLER_ORDER: { ModuleScript } = {
 	Controllers.HudController,
 	Controllers.OrderBarController,
 	Controllers.TruckController,
+	Controllers.WorldController,
+	Controllers.ZoneController,
 	Controllers.CustomerController,
 	Controllers.ShopController,
 	Controllers.FlavorController,

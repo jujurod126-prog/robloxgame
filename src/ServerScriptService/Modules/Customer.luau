@@ -53,7 +53,7 @@ function Customer.new(
 	start: CFrame,
 	parent: Instance
 ): Customer
-	local model = CustomerRig.acquire()
+	local model = CustomerRig.acquire(def.Id)
 	local root = model.PrimaryPart :: BasePart
 	root.CFrame = start
 	model:SetAttribute("OwnerUserId", owner.UserId)

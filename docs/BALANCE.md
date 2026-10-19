@@ -82,3 +82,21 @@ wrong order   = scoop value × topping multiplier × customer pay × area pay ×
   starting at 3). More customer types unlock with stars in Stage 5.
 
 The time-to-afford table above doesn't include toppings or combo yet. They make real income a bit higher than the model.
+
+## Neighborhoods and customer types (Stage 5)
+
+| Area | Unlock | Needs | Spots | Pay | Tips | Likes |
+|------|-------:|-------|------:|----:|-----:|-------|
+| Sunny Sidewalk | free | — | 3 | x1 | x1 | — |
+| Beach Boardwalk | 2,500 | Sunny | 5 | x1.6 | x1.2 | Fruity, Cold flavors (+25%) |
+| Carnival Square | 25,000 | Beach | 7 | x2.8 | x1.3 | Candy flavors; toppings pay +50% |
+| Snowy Village | 250,000 | Carnival + Rebirth 1 | 8 | x5 | x2.5 | Warm toppings (+50%) |
+| Candy Kingdom | 2,500,000 | Snowy + Rebirth 3 | 10 | x10 | x3 | Candy flavors; rare customers x2 |
+
+| Customer | Appears at | Pay | Tips | Patience | Notes |
+|----------|-----------|----:|-----:|---------:|-------|
+| Regular | always | x1 | x1 | 30 s | |
+| Kid | always | x0.7 | x0.5 | 18 s | Usually wants Sprinkles |
+| Tourist | 3.5 stars | x1.4 | x2 | 45 s | More common at sunset (Stage 8) |
+| Influencer | 4 stars, Rare+ flavor loaded | x3 | x1.5 | 30 s | +0.1 Reputation, camera flash |
+| VIP Critic | 4.5 stars, Legendary flavor loaded | x8 | x3 | 60 s | Critic Trophy per Legendary flavor |

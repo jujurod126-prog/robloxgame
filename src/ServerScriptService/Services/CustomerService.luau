@@ -2,15 +2,14 @@
 --[[
 	CustomerService
 	Runs each player's customers (server-controlled, one session per player):
-	  * keeps up to servingCapacity customers at the truck's counter
-	  * gives each one an order and a patience timer
-	  * handles the Serve prompt: checks the cone against the order and pays out
-	  * customers whose patience runs out leave without paying
-	Everything is cleaned up when the player leaves or their truck is rebuilt.
-
-	Stage 4: orders use the truck's loaded flavors and unlocked toppings; serving
-	tracks a combo (Player attribute "Combo") and changes Reputation.
-	Stage 5 adds more customer types and neighborhoods.
+	  * a session runs while the player is in the neighborhood their truck is parked in
+	    (none in the Hub); it uses that neighborhood's spots, pay, tastes and rare-customer boost
+	  * keeps up to servingCapacity customers at the counter, each a type chosen by
+	    CustomerPicker (Regular, Kid, Tourist, Influencer, VIP Critic)
+	  * gives each an order and a patience timer; the Serve prompt checks the cone and pays out
+	  * combo (Player attribute "Combo") and Reputation change with every result
+	  * VIP Critics give a Critic Trophy for each Legendary flavor they're served
+	Everything is cleaned up when the player leaves, goes to the Hub, or the truck is rebuilt.
 ]]
 
 local Players = game:GetService("Players")
@@ -19,10 +18,10 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage.Shared
 local CustomerNames = require(Shared.Data.CustomerNames)
-local Customers = require(Shared.Data.Customers)
 local Flavors = require(Shared.Data.Flavors)
 local Formulas = require(Shared.Modules.Formulas)
 local GameConfig = require(Shared.Data.GameConfig)
+local GameData = require(Shared.Types.GameData)
 local Neighborhoods = require(Shared.Data.Neighborhoods)
 local PlayerStats = require(Shared.Modules.PlayerStats)
 local Remotes = require(Shared.Modules.Remotes)
@@ -30,24 +29,24 @@ local Toppings = require(Shared.Data.Toppings)
 
 local ServerModules = script.Parent.Parent.Modules
 local Customer = require(ServerModules.Customer)
+local CustomerPicker = require(ServerModules.CustomerPicker)
 local CustomerRig = require(ServerModules.CustomerRig)
 local Notify = require(ServerModules.Notify)
 local Orders = require(ServerModules.Orders)
 local ConeService = require(script.Parent.ConeService)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
+local NeighborhoodService = require(script.Parent.NeighborhoodService)
 local TruckService = require(script.Parent.TruckService)
 
 type Customer = Customer.Customer
 
--- Until Stage 5: only the starting area and the Regular customer.
-local CURRENT_NEIGHBORHOOD = Neighborhoods[GameConfig.Starting.Neighborhood]
-local CUSTOMER_TYPE = Customers.Regular
 local EXIT_SIDE_GAP = 10 -- leaving customers walk this far past the truck's side
 
 type Session = {
 	player: Player,
 	truck: Model,
+	area: GameData.NeighborhoodDef,
 	spots: { [number]: Customer | boolean }, -- true = reserved, a customer is on the way
 	alive: boolean,
 }
@@ -61,34 +60,37 @@ local random = Random.new()
 
 local flow = GameConfig.CustomerFlow
 
--- World positions are all relative to the truck: it faces -Z, customers stand at CounterZ.
+-- ===== Positions (relative to the truck: it faces -Z, customers stand at CounterZ) =====
+
 local function truckPivot(session: Session): CFrame
 	return (session.truck.PrimaryPart :: BasePart).CFrame
 end
 
-local function spotPosition(session: Session, spotIndex: number, capacity: number): Vector3
+local function spotPosition(session: Session, spotIndex: number, capacity: number, height: number): Vector3
 	local x = (spotIndex - (capacity + 1) / 2) * flow.SpotSpacing
 	local z = session.truck:GetAttribute("CounterZ") :: number
-	return (truckPivot(session) * CFrame.new(x, CustomerRig.ROOT_HEIGHT, z)).Position
+	return (truckPivot(session) * CFrame.new(x, height, z)).Position
 end
 
-local function entryCFrame(session: Session): CFrame
+local function entryCFrame(session: Session, height: number): CFrame
 	local z = (session.truck:GetAttribute("CounterZ") :: number) - flow.SpawnDistance
-	local position = (truckPivot(session) * CFrame.new(random:NextNumber(-8, 8), CustomerRig.ROOT_HEIGHT, z)).Position
-	return CFrame.lookAt(position, position + truckPivot(session).LookVector * -1)
+	local position = (truckPivot(session) * CFrame.new(random:NextNumber(-8, 8), height, z)).Position
+	return CFrame.lookAt(position, position - truckPivot(session).LookVector)
 end
 
-local function exitPosition(session: Session): Vector3
+local function exitPosition(session: Session, height: number): Vector3
 	local side = if random:NextNumber() < 0.5 then -1 else 1
 	local x = side * ((session.truck:GetAttribute("Width") :: number) / 2 + EXIT_SIDE_GAP)
 	local z = (session.truck:GetAttribute("CounterZ") :: number) - flow.SpawnDistance
-	return (truckPivot(session) * CFrame.new(x, CustomerRig.ROOT_HEIGHT, z)).Position
+	return (truckPivot(session) * CFrame.new(x, height, z)).Position
 end
 
-local function capacityFor(player: Player): number
-	local data = DataService.getData(player)
-	return if data then PlayerStats.servingCapacity(data, CURRENT_NEIGHBORHOOD) else 0
+local function capacityFor(session: Session): number
+	local data = DataService.getData(session.player)
+	return if data then PlayerStats.servingCapacity(data, session.area) else 0
 end
+
+-- ===== Combo and Reputation =====
 
 local function setCombo(player: Player, combo: number)
 	combos[player] = combo
@@ -107,6 +109,8 @@ local function changeReputation(player: Player, delta: number)
 	end)
 end
 
+-- ===== Customer lifecycle =====
+
 local fill: (session: Session) -> ()
 
 -- Ends a customer's visit: frees its spot right away (so the next can come), then walks off.
@@ -119,8 +123,16 @@ local function leave(session: Session, customer: Customer, mood: Customer.Mood)
 		session.spots[customer.spotIndex] = nil
 	end
 	fill(session)
-	if Customer.walkTo(customer, exitPosition(session)) then
+	if Customer.walkTo(customer, exitPosition(session, CustomerRig.rootHeight(customer.def.Id))) then
 		Customer.release(customer)
+	end
+end
+
+local function awardCriticTrophy(player: Player, flavorId: string)
+	local data = DataService.getData(player)
+	if data and not data.Collectibles.CriticTrophies[flavorId] then
+		DataService.set(player, { "Collectibles", "CriticTrophies", flavorId }, true)
+		Notify.send(player, `The critic loved it! New Critic Trophy: {Flavors[flavorId].DisplayName}`, "Info")
 	end
 end
 
@@ -155,9 +167,9 @@ local function onServe(session: Session, customer: Customer, player: Player)
 		ScoopValue = Flavors[order.FlavorId].CoinValue * order.Scoops,
 		ToppingMultiplier = if order.ToppingId then Toppings[order.ToppingId].ValueMultiplier else 1,
 		HasTopping = order.ToppingId ~= nil,
-		MatchesPreference = Orders.matchesPreference(order, CURRENT_NEIGHBORHOOD),
+		MatchesPreference = Orders.matchesPreference(order, session.area),
 		Customer = customer.def,
-		Neighborhood = CURRENT_NEIGHBORHOOD,
+		Neighborhood = session.area,
 		Truck = PlayerStats.truck(data),
 		TipBonus = PlayerStats.tipBonus(data),
 		PatienceFraction = patience,
@@ -170,6 +182,9 @@ local function onServe(session: Session, customer: Customer, player: Player)
 	if correct then
 		DataService.increment(player, { "Stats", "PerfectOrders" }, 1)
 		changeReputation(player, GameConfig.Reputation.CorrectOrder + customer.def.ReputationBonus)
+		if customer.def.GivesCollectible then
+			awardCriticTrophy(player, order.FlavorId)
+		end
 	else
 		changeReputation(player, GameConfig.Reputation.WrongOrder)
 	end
@@ -183,6 +198,14 @@ local function onServe(session: Session, customer: Customer, player: Player)
 	leave(session, customer, mood)
 end
 
+local function announce(player: Player, customerDef: GameData.CustomerDef)
+	if customerDef.Id == "VIP" then
+		Notify.send(player, "A VIP Critic is here! They want a Legendary flavor.", "Info")
+	elseif customerDef.Id == "Influencer" then
+		Notify.send(player, "An Influencer stopped by! Serve them well for bonus Reputation.", "Info")
+	end
+end
+
 local function spawnCustomer(session: Session, spotIndex: number)
 	if not session.alive then
 		return
@@ -193,12 +216,15 @@ local function spawnCustomer(session: Session, spotIndex: number)
 		return
 	end
 
-	local name = CustomerNames[random:NextInteger(1, #CustomerNames)]
-	local customer = Customer.new(session.player, CUSTOMER_TYPE, name, spotIndex, entryCFrame(session), customersFolder)
+	local def = CustomerPicker.pick(data, session.area)
+	local height = CustomerRig.rootHeight(def.Id)
+	local baseName = CustomerNames[random:NextInteger(1, #CustomerNames)]
+	local name = if def.Id == "Regular" then baseName else `{def.DisplayName} {baseName}`
+	local customer = Customer.new(session.player, def, name, spotIndex, entryCFrame(session, height), customersFolder)
 	session.spots[spotIndex] = customer
 
-	local target = spotPosition(session, spotIndex, capacityFor(session.player))
-	if not Customer.walkTo(customer, target, truckPivot(session).LookVector * -1) or not session.alive then
+	local target = spotPosition(session, spotIndex, capacityFor(session), height)
+	if not Customer.walkTo(customer, target, -truckPivot(session).LookVector) or not session.alive then
 		return
 	end
 
@@ -207,17 +233,18 @@ local function spawnCustomer(session: Session, spotIndex: number)
 	if current == nil then
 		return
 	end
-	local order = Orders.create(current, CUSTOMER_TYPE, CURRENT_NEIGHBORHOOD)
-	local prompt = Customer.showOrder(customer, order, CUSTOMER_TYPE.PatienceSeconds)
+	local order = Orders.create(current, def, session.area)
+	local prompt = Customer.showOrder(customer, order, def.PatienceSeconds)
 	prompt.Triggered:Connect(function(player: Player)
 		onServe(session, customer, player)
 	end)
-	customer.patienceThread = task.delay(CUSTOMER_TYPE.PatienceSeconds, function()
+	customer.patienceThread = task.delay(def.PatienceSeconds, function()
 		-- Ran out of patience: no pay, combo broken, small Reputation hit.
 		setCombo(session.player, 0)
 		changeReputation(session.player, GameConfig.Reputation.CustomerLeft)
 		leave(session, customer, "Angry")
 	end)
+	announce(session.player, def)
 end
 
 -- Reserves free spots up to the serving capacity and sends a customer to each after a short delay.
@@ -225,12 +252,12 @@ function fill(session: Session)
 	if not session.alive then
 		return
 	end
-	local capacity = capacityFor(session.player)
+	local capacity = capacityFor(session)
 	local occupied = 0
 	for _ in session.spots do
 		occupied += 1
 	end
-	for spotIndex = 1, CURRENT_NEIGHBORHOOD.CustomerSpots do
+	for spotIndex = 1, session.area.CustomerSpots do
 		if occupied >= capacity then
 			break
 		end
@@ -241,6 +268,8 @@ function fill(session: Session)
 		end
 	end
 end
+
+-- ===== Sessions =====
 
 local function endSession(player: Player)
 	local session = sessions[player]
@@ -258,10 +287,28 @@ local function endSession(player: Player)
 end
 
 local function startSession(player: Player, truck: Model)
-	endSession(player) -- a rebuilt truck starts a fresh line of customers
-	local session: Session = { player = player, truck = truck, spots = {}, alive = true }
+	endSession(player)
+	local area = Neighborhoods[truck:GetAttribute("Neighborhood") :: string]
+	if area == nil or area.IsHub then
+		return
+	end
+	local session: Session = { player = player, truck = truck, area = area, spots = {}, alive = true }
 	sessions[player] = session
 	fill(session)
+end
+
+-- Customers only come while the player is in the same area as their truck.
+local function refreshSession(player: Player)
+	local truck = TruckService.getTruck(player)
+	local area = NeighborhoodService.getArea(player)
+	if truck == nil or area == nil or truck:GetAttribute("Neighborhood") ~= area then
+		endSession(player)
+		return
+	end
+	local session = sessions[player]
+	if session == nil or session.truck ~= truck then
+		startSession(player, truck)
+	end
 end
 
 -- ===== Lifecycle =====
@@ -273,8 +320,9 @@ function CustomerService.Init()
 end
 
 function CustomerService.Start()
-	TruckService.TruckSpawned:Connect(startSession)
+	TruckService.TruckSpawned:Connect(refreshSession)
 	TruckService.TruckRemoved:Connect(endSession)
+	NeighborhoodService.AreaChanged:Connect(refreshSession)
 	Players.PlayerRemoving:Connect(function(player)
 		endSession(player)
 		combos[player] = nil

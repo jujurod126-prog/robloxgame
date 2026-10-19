@@ -1,13 +1,15 @@
 --!strict
 --[[
 	TruckService
-	Gives every player their own truck on its own parking lot when their data
-	loads, and removes it when they leave. Also applies truck stats to the
-	character (walk speed) and moves the character behind the truck on spawn.
+	Every player has one truck, parked on a lot in the neighborhood they're
+	working in. NeighborhoodService decides where (placeTruck); this service
+	builds, moves, rebuilds (tier/cosmetic change) and removes it, and applies
+	truck stats to the character (walk speed).
 
 	Signals:
-	  TruckService.TruckSpawned (player, truckModel)  -- also fires after a rebuild (tier change)
+	  TruckService.TruckSpawned (player, truckModel)  -- after placing in a new area or a rebuild
 	  TruckService.TruckRemoved (player)
+	The truck model has attribute Neighborhood = the area it's parked in.
 ]]
 
 local Players = game:GetService("Players")
@@ -21,6 +23,7 @@ local GameConfig = require(Shared.Data.GameConfig)
 local PlayerDataTypes = require(Shared.Types.PlayerData)
 local PlayerStats = require(Shared.Modules.PlayerStats)
 local Signal = require(Shared.Modules.Signal)
+local WorldLayout = require(Shared.Data.WorldLayout)
 
 local TruckBuilder = require(script.Parent.Parent.Modules.TruckBuilder)
 local DataService = require(script.Parent.DataService)
@@ -31,6 +34,8 @@ local DEFAULT_PAINT = Color3.fromRGB(250, 250, 245)
 local DEFAULT_AWNING = Color3.fromRGB(255, 110, 140)
 local GROUND_RAY_HEIGHT = 200
 
+type Parking = { area: string, lot: number }
+
 local TruckService = {}
 
 TruckService.TruckSpawned = Signal.new()
@@ -38,20 +43,33 @@ TruckService.TruckRemoved = Signal.new()
 
 local trucksFolder: Folder
 local trucks: { [Player]: Model? } = {}
-local lotOwners: { [number]: Player? } = {}
-local playerLots: { [Player]: number? } = {}
+local parking: { [Player]: Parking? } = {}
+local lotOwners: { [string]: { [number]: Player? } } = {} -- area -> lot -> player
 
--- Lot 1 at the origin, then +1, -1, +2, -2 ... spacings along X.
+-- Lot 1 in the middle of the row, then +1, -1, +2, -2 ... spacings along X.
 local function lotOffsetIndex(lot: number): number
 	local step = math.floor(lot / 2)
 	return if lot % 2 == 0 then step else -step
 end
 
-local function claimLot(player: Player): number?
+local function freeLot(player: Player)
+	local spot = parking[player]
+	if spot then
+		local owners = lotOwners[spot.area]
+		if owners then
+			owners[spot.lot] = nil
+		end
+		parking[player] = nil
+	end
+end
+
+local function claimLot(player: Player, area: string): number?
+	local owners: { [number]: Player? } = lotOwners[area] or {}
+	lotOwners[area] = owners
 	for lot = 1, GameConfig.Trucks.MaxLots do
-		if lotOwners[lot] == nil then
-			lotOwners[lot] = player
-			playerLots[player] = lot
+		if owners[lot] == nil then
+			owners[lot] = player
+			parking[player] = { area = area, lot = lot }
 			return lot
 		end
 	end
@@ -78,11 +96,11 @@ local function groundY(x: number, z: number, fallback: number): number
 	return if result then result.Position.Y else fallback
 end
 
-local function lotPivot(lot: number): CFrame
-	local origin = GameConfig.Trucks.LotOrigin
-	local x = origin.X + lotOffsetIndex(lot) * GameConfig.Trucks.LotSpacing
-	local y = groundY(x, origin.Z, origin.Y)
-	return CFrame.new(x, y, origin.Z)
+local function lotPivot(area: string, lot: number): CFrame
+	local layout = WorldLayout[area]
+	local x = layout.Center.X + lotOffsetIndex(lot) * GameConfig.Trucks.LotSpacing
+	local z = layout.Center.Z + layout.LotRowZ
+	return CFrame.new(x, groundY(x, z, layout.Center.Y), z)
 end
 
 local function cosmeticColor(id: string, fallback: Color3): Color3
@@ -90,14 +108,15 @@ local function cosmeticColor(id: string, fallback: Color3): Color3
 	return if cosmetic and cosmetic.Color then cosmetic.Color else fallback
 end
 
-local function buildTruck(player: Player, data: PlayerData, lot: number): Model
+local function buildTruck(player: Player, data: PlayerData, spot: Parking): Model
 	local model = TruckBuilder.build(PlayerStats.truck(data), {
 		Paint = cosmeticColor(data.Truck.Equipped.Paint, DEFAULT_PAINT),
 		Awning = cosmeticColor(data.Truck.Equipped.Awning, DEFAULT_AWNING),
-	}, lotPivot(lot))
+	}, lotPivot(spot.area, spot.lot))
 	model.Name = `Truck_{player.UserId}`
 	model:SetAttribute("OwnerUserId", player.UserId)
 	model:SetAttribute("OwnerName", player.DisplayName)
+	model:SetAttribute("Neighborhood", spot.area)
 	model.Parent = trucksFolder
 	return model
 end
@@ -111,61 +130,20 @@ local function applyWalkSpeed(player: Player)
 	end
 end
 
--- Puts the character behind its truck, facing the customers.
-local function moveCharacterToTruck(player: Player, character: Model)
-	local truck = trucks[player]
-	if truck == nil or truck.PrimaryPart == nil then
-		return
-	end
-	local root = character:WaitForChild("HumanoidRootPart", 10)
-	if root == nil or character.Parent == nil then
-		return
-	end
-	-- Let Roblox finish its own spawn positioning first, or it overrides ours.
-	RunService.Heartbeat:Wait()
-	local pivot = truck.PrimaryPart.CFrame
-	local standZ = truck:GetAttribute("StandZ") :: number
-	local position = (pivot * CFrame.new(0, 3, standZ)).Position
-	character:PivotTo(CFrame.lookAt(position, position + pivot.LookVector))
-end
-
-local function onCharacterAdded(player: Player, character: Model)
-	applyWalkSpeed(player)
-	moveCharacterToTruck(player, character)
-	applyWalkSpeed(player) -- again, in case the Humanoid appeared while we waited
-end
-
-local function spawnTruck(player: Player, data: PlayerData)
-	local lot = claimLot(player)
-	if lot == nil then
-		warn(`[TruckService] No free truck lot for {player.Name}; raise GameConfig.Trucks.MaxLots`)
-		return
-	end
-	trucks[player] = buildTruck(player, data, lot)
-	TruckService.TruckSpawned:Fire(player, trucks[player])
-
-	player.CharacterAdded:Connect(function(character)
-		onCharacterAdded(player, character)
-	end)
-	if player.Character then
-		task.spawn(onCharacterAdded, player, player.Character)
-	end
-end
-
--- Rebuilds the truck in place (after buying a new tier or cosmetic).
+-- Rebuilds the truck on the same lot (after buying a new tier or cosmetic).
 local function rebuildTruck(player: Player)
 	local data = DataService.getData(player)
-	local lot = playerLots[player]
+	local spot = parking[player]
 	local old = trucks[player]
-	if data == nil or lot == nil or old == nil then
+	if data == nil or spot == nil or old == nil then
 		return
 	end
 	old:Destroy()
-	trucks[player] = buildTruck(player, data, lot)
+	trucks[player] = buildTruck(player, data, spot)
 	TruckService.TruckSpawned:Fire(player, trucks[player])
 	-- A bigger truck could overlap the player, so put them behind the new one.
 	if player.Character then
-		task.spawn(moveCharacterToTruck, player, player.Character)
+		task.spawn(TruckService.moveCharacterToTruck, player, player.Character)
 	end
 end
 
@@ -176,17 +154,64 @@ local function onPlayerRemoving(player: Player)
 		trucks[player] = nil
 		TruckService.TruckRemoved:Fire(player)
 	end
-	local lot = playerLots[player]
-	if lot then
-		lotOwners[lot] = nil
-		playerLots[player] = nil
-	end
+	freeLot(player)
 end
 
 -- ===== Public API =====
 
 function TruckService.getTruck(player: Player): Model?
 	return trucks[player]
+end
+
+-- The area the player's truck is parked in, or nil if they have no truck yet.
+function TruckService.getTruckArea(player: Player): string?
+	local spot = parking[player]
+	return if spot then spot.area else nil
+end
+
+--[[
+	Parks the player's truck in `area` (a neighborhood id), building it if needed.
+	Does nothing if it's already there. Returns true if the truck is in that area.
+]]
+function TruckService.placeTruck(player: Player, area: string): boolean
+	local data = DataService.getData(player)
+	if data == nil or WorldLayout[area] == nil then
+		return false
+	end
+	local spot = parking[player]
+	if spot and spot.area == area and trucks[player] then
+		return true
+	end
+	freeLot(player)
+	if claimLot(player, area) == nil then
+		warn(`[TruckService] No free truck lot in {area}; raise GameConfig.Trucks.MaxLots`)
+		return false
+	end
+	local old = trucks[player]
+	if old then
+		old:Destroy()
+	end
+	trucks[player] = buildTruck(player, data, parking[player] :: Parking)
+	TruckService.TruckSpawned:Fire(player, trucks[player])
+	return true
+end
+
+-- Puts the character behind their truck, facing the customers. Yields briefly.
+function TruckService.moveCharacterToTruck(player: Player, character: Model)
+	local truck = trucks[player]
+	if truck == nil or truck.PrimaryPart == nil then
+		return
+	end
+	local root = character:WaitForChild("HumanoidRootPart", 10)
+	if root == nil or character.Parent == nil then
+		return
+	end
+	-- Let Roblox finish its own spawn positioning first, or it overrides ours.
+	RunService.Heartbeat:Wait()
+	local pivot = (truck.PrimaryPart :: BasePart).CFrame
+	local standZ = truck:GetAttribute("StandZ") :: number
+	local position = (pivot * CFrame.new(0, 3, standZ)).Position
+	character:PivotTo(CFrame.lookAt(position, position + pivot.LookVector))
 end
 
 -- ===== Lifecycle =====
@@ -198,8 +223,15 @@ function TruckService.Init()
 end
 
 function TruckService.Start()
-	DataService.PlayerLoaded:Connect(spawnTruck)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+	DataService.PlayerLoaded:Connect(function(player: Player)
+		player.CharacterAdded:Connect(function(character)
+			character:WaitForChild("Humanoid", 10)
+			applyWalkSpeed(player)
+		end)
+		applyWalkSpeed(player)
+	end)
 
 	DataService.Changed:Connect(function(player: Player, path: { any })
 		if #path == 0 then
