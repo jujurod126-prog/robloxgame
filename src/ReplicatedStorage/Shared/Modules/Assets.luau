@@ -15,6 +15,14 @@ local PLACEHOLDER_ASSET = "rbxassetid://0"
 local PLACEHOLDER_ID = 0
 
 local Assets = {
+	-- ===== Sprite sheets (assets/sprites/SpriteSheet1-4.png) =====
+	-- Upload each PNG (Asset Manager -> Images), then paste its ID here.
+	-- Pets, eggs, trucks, rarity frames, upgrade icons, toppings, emotes and bars come from these.
+	SPRITE_SHEET_1 = PLACEHOLDER_ASSET,
+	SPRITE_SHEET_2 = PLACEHOLDER_ASSET,
+	SPRITE_SHEET_3 = PLACEHOLDER_ASSET,
+	SPRITE_SHEET_4 = PLACEHOLDER_ASSET,
+
 	-- ===== Currency & HUD icons =====
 	ICON_COIN = PLACEHOLDER_ASSET,
 	ICON_GEM = PLACEHOLDER_ASSET,

@@ -73,6 +73,25 @@ These only work in Studio and are typed into chat:
 | `/gems <n>`      | Add n Gems                                |
 | `/wipe`          | Reset your data to a brand-new player     |
 
+## Art (sprite sheets)
+
+UI art is packed into a few 1024×1024 sprite sheets, so you upload 4 images instead of dozens.
+
+```text
+assets/sprites/source/   your original art sheets
+assets/sprites/parts/    one transparent PNG per sprite (PetPenguin.png, TruckUfo.png, ...)
+assets/sprites/SpriteSheet1-4.png   <- upload these to Roblox
+```
+
+1. In Studio, open **View → Asset Manager → Images → Bulk Import** and pick the 4 `SpriteSheet` PNGs.
+2. Right-click each uploaded image, choose **Copy Asset ID**, and paste it into
+   `src/ReplicatedStorage/Shared/Modules/Assets.luau` as `SPRITE_SHEET_1` … `SPRITE_SHEET_4`.
+   Use the matching numbers: SpriteSheet1.png goes in SPRITE_SHEET_1, and so on.
+
+**Adding new art:** put a transparent PNG named after the sprite into `assets/sprites/parts`,
+run `python3 tools/sprites/pack.py` (needs Python and `pip install pillow`), and re-upload any sheets
+that changed. Or send me the art and I'll do it.
+
 ## Third-party code
 
 - [ProfileStore](https://github.com/MadStudioRoblox/ProfileStore) by loleris, Apache-2.0.
