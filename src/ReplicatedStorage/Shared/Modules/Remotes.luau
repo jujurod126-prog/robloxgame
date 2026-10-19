@@ -24,6 +24,12 @@ export type FunctionName =
 	| "EquipFlavor"
 	| "UnlockTopping"
 	| "AddTopping"
+	| "HatchEgg"
+	| "EquipPet"
+	| "UnequipPet"
+	| "DeletePet"
+	| "SetPetLocked"
+	| "MergePets"
 
 -- Add new names to BOTH the type above and the list below.
 local EVENT_NAMES: { EventName } = {
@@ -41,7 +47,17 @@ local FUNCTION_NAMES: { FunctionName } = {
 	"EquipFlavor", -- Client -> Server: (flavorId: string, slot: number) -> PurchaseResult
 	"UnlockTopping", -- Client -> Server: (toppingId: string) -> PurchaseResult
 	"AddTopping", -- Client -> Server: (toppingId: string) -> PurchaseResult (put a topping on your cone)
+	"HatchEgg", -- Client -> Server: (eggId: string, count: 1 | 3) -> HatchResult
+	"EquipPet", -- Client -> Server: (petGuid: string) -> PurchaseResult
+	"UnequipPet", -- Client -> Server: (petGuid: string) -> PurchaseResult
+	"DeletePet", -- Client -> Server: (petGuid: string) -> PurchaseResult
+	"SetPetLocked", -- Client -> Server: (petGuid: string, locked: boolean) -> PurchaseResult
+	"MergePets", -- Client -> Server: (petId: string) -> PurchaseResult (5 normal copies -> 1 golden)
 }
+
+-- What HatchEgg returns: the pets that came out, in order, for the hatch animation.
+export type HatchedPet = { Guid: string, PetId: string, Variant: string }
+export type HatchResult = { Ok: boolean, Message: string, Pets: { HatchedPet }? }
 
 -- What purchase RemoteFunctions return. Message is shown to the player.
 export type PurchaseResult = { Ok: boolean, Message: string }

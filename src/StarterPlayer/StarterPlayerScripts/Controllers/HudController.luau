@@ -20,6 +20,7 @@ local GameConfig = require(Shared.Data.GameConfig)
 local Neighborhoods = require(Shared.Data.Neighborhoods)
 local NumberFormat = require(Shared.Modules.NumberFormat)
 local FlavorRules = require(Shared.Modules.FlavorRules)
+local PetRules = require(Shared.Modules.PetRules)
 local ShopRules = require(Shared.Modules.ShopRules)
 
 local UI = script.Parent.Parent.UI
@@ -247,16 +248,23 @@ local function watchDots()
 		local data = DataController.getData()
 		HudController.setDot("Shop", data ~= nil and ShopRules.hasAffordable(data))
 		HudController.setDot("Flavors", data ~= nil and FlavorRules.hasAffordable(data))
+		-- Nudge new players toward their first egg.
+		HudController.setDot(
+			"Pets",
+			data ~= nil and PetRules.inventoryCount(data) == 0 and PetRules.eggStatus(data, "Basic", 1).CanBuy
+		)
 	end
 	DataController.Changed:Connect(function(path: { any })
 		local key = path[1]
 		if
 			#path == 0
 			or key == "Coins"
+			or key == "Gems"
 			or key == "Truck"
 			or key == "Rebirths"
 			or key == "Flavors"
 			or key == "Toppings"
+			or key == "Pets"
 		then
 			update()
 		end

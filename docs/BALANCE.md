@@ -100,3 +100,19 @@ The time-to-afford table above doesn't include toppings or combo yet. They make 
 | Tourist | 3.5 stars | x1.4 | x2 | 45 s | More common at sunset (Stage 8) |
 | Influencer | 4 stars, Rare+ flavor loaded | x3 | x1.5 | 30 s | +0.1 Reputation, camera flash |
 | VIP Critic | 4.5 stars, Legendary flavor loaded | x8 | x3 | 60 s | Critic Trophy per Legendary flavor |
+
+## Pets (Stage 6)
+
+Equipped pets add their boost (golden pets x2.5). Boosts of the same kind add together:
+Coins boosts multiply all Coin income, Speed boosts walk speed, Scoop cuts scoop time,
+and Tips add to the Tip Bonus.
+
+| Egg | Price | Best odds |
+|-----|------:|-----------|
+| Basic | 750 Coins | Penguin 35%, Cow 30%, Waffle Pup 20%, Polar Bear 8%, Cone Cat 5%, Cherry Chick 2% |
+| Rainbow | 100 Gems | up to Marshmallow Ghost 4%, Gummy Bear 1% |
+| Legendary | 500 Gems | Sprinkle Dragon 7%, Galaxy Unicorn 1% |
+
+- 3 pet slots to start (+1 and +2 from the Extra Pet Slot rebirth skill in Stage 7), 100 pets max.
+- Merge 5 unlocked normal copies of a pet into 1 golden one (2.5x boost).
+- Example: 3 Penguins (+5% Coins each) = +15% Coins. One Golden Penguin = +12.5%.

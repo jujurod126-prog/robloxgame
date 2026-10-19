@@ -242,6 +242,8 @@ function TruckService.Start()
 				rebuildTruck(player)
 			end
 			applyWalkSpeed(player)
+		elseif path[1] == "Pets" or path[1] == "Skills" then
+			applyWalkSpeed(player) -- pet speed boosts
 		end
 	end)
 end

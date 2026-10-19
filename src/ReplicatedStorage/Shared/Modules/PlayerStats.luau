@@ -3,7 +3,8 @@
 	PlayerStats
 	Turns saved PlayerData into the numbers gameplay uses (scoop time, walk
 	speed, cone size...). Server uses these to run the game; the client may use
-	them to display stats. Pet and game-pass boosts get added here in later stages.
+	them to display stats. Equipped pets boost Coins, walk speed, scoop speed and
+	tips here; game-pass boosts get added in Stage 8.
 ]]
 
 local Shared = script.Parent.Parent
@@ -11,6 +12,7 @@ local Flavors = require(Shared.Data.Flavors)
 local Formulas = require(script.Parent.Formulas)
 local GameConfig = require(Shared.Data.GameConfig)
 local GameData = require(Shared.Types.GameData)
+local PetRules = require(script.Parent.PetRules)
 local PlayerDataTypes = require(Shared.Types.PlayerData)
 local Trucks = require(Shared.Data.Trucks)
 
@@ -29,7 +31,8 @@ end
 -- Seconds to scoop one scoop (the dispenser prompt's hold time).
 function PlayerStats.scoopSeconds(data: PlayerData): number
 	local base = Formulas.upgradeValue("ScoopSpeed", level(data, "ScoopSpeed"))
-	return base / PlayerStats.truck(data).ScoopSpeedMultiplier
+	local petBoost = PetRules.totalBoosts(data).ScoopSpeed
+	return base / (PlayerStats.truck(data).ScoopSpeedMultiplier * (1 + petBoost))
 end
 
 -- Scoops the cone can hold.
@@ -45,12 +48,15 @@ function PlayerStats.servingCapacity(data: PlayerData, neighborhood: GameData.Ne
 end
 
 function PlayerStats.walkSpeed(data: PlayerData): number
-	return Formulas.upgradeValue("MoveSpeed", level(data, "MoveSpeed")) * PlayerStats.truck(data).MoveSpeedMultiplier
+	local petBoost = PetRules.totalBoosts(data).MoveSpeed
+	return Formulas.upgradeValue("MoveSpeed", level(data, "MoveSpeed"))
+		* PlayerStats.truck(data).MoveSpeedMultiplier
+		* (1 + petBoost)
 end
 
 -- Extra tip fraction from the Tip Bonus upgrade (0.1 = +10%).
 function PlayerStats.tipBonus(data: PlayerData): number
-	return Formulas.upgradeValue("TipBonus", level(data, "TipBonus"))
+	return Formulas.upgradeValue("TipBonus", level(data, "TipBonus")) + PetRules.totalBoosts(data).TipBonus
 end
 
 -- Number of flavor slots on the current truck.
@@ -83,7 +89,7 @@ end
 
 -- Multiplier applied to every Coin the player earns.
 function PlayerStats.coinMultiplier(data: PlayerData): number
-	return Formulas.rebirthCoinMultiplier(data.Rebirths)
+	return Formulas.rebirthCoinMultiplier(data.Rebirths) * (1 + PetRules.totalBoosts(data).CoinMultiplier)
 end
 
 return PlayerStats

@@ -48,6 +48,11 @@ DataController.Changed:Connect(function(path, value) ... end)
 | `UnlockTopping` | RemoteFunction | Client → Server | `toppingId: string` | `{ Ok, Message }` | Purchase limit | 4 |
 | `AddTopping` | RemoteFunction | Client → Server | `toppingId: string` (must be unlocked, near your truck, cone not empty, one per cone) | `{ Ok, Message }` | 12 per second (Action) | 4 |
 | `SelectFlavor` | RemoteEvent | Client → Server | `slot: number` (which loaded flavor the dispenser scoops) | — | 12 per second (Action) | 4 |
+| `HatchEgg` | RemoteFunction | Client → Server | `eggId: string, count: 1 \| 3` | `{ Ok, Message, Pets: { { Guid, PetId, Variant } }? }`, rolled on the server; fills free pet slots | Purchase limit | 6 |
+| `EquipPet` / `UnequipPet` | RemoteFunction | Client → Server | `petGuid: string` | `{ Ok, Message }` (max `PetRules.equipSlots`) | Purchase limit | 6 |
+| `DeletePet` | RemoteFunction | Client → Server | `petGuid: string` (not if locked) | `{ Ok, Message }` | Purchase limit | 6 |
+| `SetPetLocked` | RemoteFunction | Client → Server | `petGuid: string, locked: boolean` | `{ Ok, Message }` | Purchase limit | 6 |
+| `MergePets` | RemoteFunction | Client → Server | `petId: string` (needs 5 unlocked Normal copies; unequipped ones are used first) | `{ Ok, Message }` | Purchase limit | 6 |
 
 *Later stages add rows here, for example
 `UnlockFlavor(flavorId)` and `HatchEgg(eggId, count)`.*
@@ -86,6 +91,7 @@ on your screen. The server still checks access at the pad.
 | `ActiveSlot`, `ActiveFlavor` | number, string | Which loaded flavor the dispenser scoops |
 | `Combo` | number | Correct orders in a row (set by CustomerService; 0 after a wrong or lost customer) |
 | `Neighborhood` | string | The area you're in: `"Hub"` or a neighborhood id. Drives lighting, music and the HUD name |
+| `EquippedPets` | string | Your equipped pets for everyone to see, e.g. `"Penguin:Normal,Cow:Golden"` (drawn by PetFollowController) |
 
 **On each truck model** in `Workspace.Trucks`: `OwnerUserId`, `OwnerName`, `Tier`, `Neighborhood`,
 `CounterZ`, `StandZ` and `Width`. The dispenser prompt also has a `ScoopSeconds` attribute.

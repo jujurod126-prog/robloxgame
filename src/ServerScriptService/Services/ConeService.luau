@@ -277,7 +277,7 @@ function ConeService.Start()
 	end)
 
 	DataService.Changed:Connect(function(player: Player, path: { any })
-		if #path == 0 or path[1] == "Truck" or path[1] == "Flavors" then
+		if #path == 0 or path[1] == "Truck" or path[1] == "Flavors" or path[1] == "Pets" then
 			configurePrompt(player)
 			refresh(player)
 		end
