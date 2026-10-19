@@ -14,6 +14,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Data.GameConfig)
@@ -56,7 +57,8 @@ end
 
 local function saveScores(player: Player)
 	local data = DataService.getData(player)
-	if data == nil then
+	-- Studio test commands (/coins) would otherwise put fake scores on the real boards.
+	if data == nil or RunService:IsStudio() then
 		return
 	end
 	for _, board in boards do

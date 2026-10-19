@@ -85,15 +85,21 @@ end
 
 -- ===== Rush Hour =====
 
--- Starts (or joins) the current Rush Hour for one player: their own end time and bonus Gems.
-local function joinRushHour(player: Player)
+--[[
+	Starts (or joins) the current Rush Hour for one player: their own end time,
+	plus bonus Gems only for players already here when it started. Paying late
+	joiners would let people rejoin or server-hop to farm Gems.
+]]
+local function joinRushHour(player: Player, payGems: boolean)
 	local data = DataService.getData(player)
 	if data == nil or Workspace:GetServerTimeNow() >= rushHourEndsAt then
 		return
 	end
 	local extra = RebirthRules.skillValue(data, "RushHourDuration")
 	player:SetAttribute("RushHourEnds", rushHourEndsAt + extra)
-	EconomyService.awardGems(player, rush.GemBonus)
+	if payGems then
+		EconomyService.awardGems(player, rush.GemBonus)
+	end
 end
 
 local function startRushHour()
@@ -105,7 +111,7 @@ local function startRushHour()
 		"RushHour"
 	)
 	for _, player in Players:GetPlayers() do
-		joinRushHour(player)
+		joinRushHour(player, true)
 	end
 end
 
@@ -164,7 +170,10 @@ function EventService.Init()
 end
 
 function EventService.Start()
-	DataService.PlayerLoaded:Connect(joinRushHour) -- joined mid Rush Hour: count them in
+	-- Joined mid Rush Hour: faster customers, but no Gems.
+	DataService.PlayerLoaded:Connect(function(player: Player)
+		joinRushHour(player, false)
+	end)
 	task.spawn(runClock)
 	task.spawn(runWeather)
 	task.spawn(runRushHour)

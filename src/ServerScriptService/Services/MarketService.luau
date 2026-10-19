@@ -38,26 +38,46 @@ local function passIdFor(numericId: number): string?
 	return nil
 end
 
--- Asks Roblox which passes the player owns and stores the answer.
+local CHECK_RETRIES = 3
+
+-- Asks Roblox (with retries) whether the player owns a pass. nil = Roblox didn't answer.
+local function checkOwnership(player: Player, passId: number): boolean?
+	for attempt = 1, CHECK_RETRIES do
+		local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, passId)
+		if ok then
+			return owns == true
+		end
+		task.wait(2 ^ attempt)
+	end
+	return nil
+end
+
+-- Asks Roblox which passes the player owns and stores the answer. If Roblox
+-- never answers, the saved value is kept (it was confirmed when it was bought).
 local function refreshPasses(player: Player)
 	for id, pass in Products.GamePasses do
 		if not Assets.isPlaceholder(pass.PassId) then
-			local ok, owns =
-				pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, pass.PassId)
-			if ok then
+			local owns = checkOwnership(player, pass.PassId)
+			if owns ~= nil and player.Parent then
 				DataService.set(player, { "OwnedPasses", id }, if owns then true else nil)
 			end
 		end
 	end
 end
 
+-- The "purchase finished" event can be faked by exploiters, so always confirm with Roblox.
 local function onPassPurchased(player: Player, numericId: number, purchased: boolean)
 	local id = passIdFor(numericId)
-	if purchased and id then
-		DataService.set(player, { "OwnedPasses", id }, true)
-		Notify.send(player, `Thanks for buying {Products.GamePasses[id].DisplayName}!`, "Info")
-		Notify.celebrate(player, "Purchase")
+	if not purchased or id == nil then
+		return
 	end
+	if checkOwnership(player, numericId) ~= true then
+		warn(`[MarketService] {player.Name} reported buying pass {numericId}, but Roblox says no`)
+		return
+	end
+	DataService.set(player, { "OwnedPasses", id }, true)
+	Notify.send(player, `Thanks for buying {Products.GamePasses[id].DisplayName}!`, "Info")
+	Notify.celebrate(player, "Purchase")
 end
 
 local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
