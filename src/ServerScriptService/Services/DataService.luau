@@ -53,6 +53,9 @@ local DataService = {}
 DataService.PlayerLoaded = Signal.new()
 -- Fires (player, path, newValue) after every change made through this service.
 DataService.Changed = Signal.new()
+-- Fires (player, data) right before a leaving player's profile is saved and released.
+-- The data table stays readable inside the handler (getData returns nil after this).
+DataService.Releasing = Signal.new()
 
 local store: any = nil
 local profiles: { [Player]: any } = {}
@@ -100,8 +103,15 @@ local function onPlayerAdded(player: Player)
 
 	profile:AddUserId(player.UserId) -- GDPR: links the save to the user for erasure requests
 
-	local ok, result = pcall(DataMigrations.run, profile.Data)
-	if not ok or result ~= "Ok" then
+	-- Migrate a copy: if a migration errors halfway, the untouched original is what gets saved.
+	local migrated = TableUtil.deepCopy(profile.Data)
+	local ok, result = pcall(DataMigrations.run, migrated)
+	if ok and result == "Ok" then
+		table.clear(profile.Data)
+		for key, value in migrated do
+			profile.Data[key] = value
+		end
+	else
 		warn(`[DataService] Migration failed for {player.Name}: {if ok then result else tostring(result)}`)
 		profile:EndSession()
 		if player.Parent == Players then
@@ -111,10 +121,15 @@ local function onPlayerAdded(player: Player)
 	end
 	profile:Reconcile() -- fill in keys added to DataTemplate since this save was made
 
+	-- "External" = another server took the session; "Shutdown" = this server is closing.
+	local lastSaveReason = "Manual"
+	profile.OnLastSave:Connect(function(reason: string)
+		lastSaveReason = reason
+	end)
 	profile.OnSessionEnd:Connect(function()
 		profiles[player] = nil
 		syncSeq[player] = nil
-		if player.Parent == Players then
+		if player.Parent == Players and lastSaveReason == "External" then
 			player:Kick(KICK_SESSION_ENDED)
 		end
 	end)
@@ -141,6 +156,7 @@ end
 local function onPlayerRemoving(player: Player)
 	local profile = profiles[player]
 	if profile then
+		DataService.Releasing:Fire(player, profile.Data)
 		-- Saves one last time and releases the session lock.
 		profile:EndSession()
 	end
@@ -209,7 +225,11 @@ function DataService.update(player: Player, path: Path, updater: (any) -> any): 
 	end
 	local key = path[#path]
 
-	local newValue = updater(parent[key])
+	local oldValue = parent[key]
+	local newValue = updater(oldValue)
+	if newValue == oldValue and type(newValue) ~= "table" then
+		return newValue -- nothing changed: don't send a patch or fire Changed
+	end
 	parent[key] = newValue
 
 	replicate(player, path, newValue)
@@ -252,6 +272,35 @@ function DataService.resetData(player: Player)
 	end
 	replicate(player, {}, profile.Data)
 	DataService.Changed:Fire(player, {}, profile.Data)
+end
+
+--[[
+	Saves the player's profile now and yields until the DataStore holds data for
+	which isSaved(savedData) is true (e.g. a purchase receipt id is in it).
+	Returns false if the session ends or `timeout` seconds pass first.
+	Used by ProcessReceipt so a purchase is only confirmed once it is really saved.
+]]
+function DataService.saveAndConfirm(player: Player, isSaved: (savedData: any) -> boolean, timeout: number): boolean
+	local profile = getActiveProfile(player)
+	if profile == nil then
+		return false
+	end
+	if isSaved(profile.LastSavedData) then
+		return true
+	end
+	local confirmed = false
+	local connection = profile.OnAfterSave:Connect(function(savedData: any)
+		if isSaved(savedData) then
+			confirmed = true
+		end
+	end)
+	profile:Save()
+	local deadline = os.clock() + timeout
+	while not confirmed and profile:IsActive() and os.clock() < deadline do
+		task.wait(0.1)
+	end
+	connection:Disconnect()
+	return confirmed
 end
 
 -- ===== Lifecycle =====

@@ -26,6 +26,7 @@ local Assets = require(Shared.Modules.Assets)
 local DailyRewards = require(Shared.Data.DailyRewards)
 local GameConfig = require(Shared.Data.GameConfig)
 local GameData = require(Shared.Types.GameData)
+local PetRules = require(Shared.Modules.PetRules)
 local QuestRules = require(Shared.Modules.QuestRules)
 local Quests = require(Shared.Data.Quests)
 local Remotes = require(Shared.Modules.Remotes)
@@ -174,6 +175,10 @@ local function claimDaily(player: Player): HatchResult
 		return { Ok = false, Message = "Come back later for your next reward!" }
 	end
 	local reward = DailyRewards[status.Day].Reward
+	-- Refuse before claiming, so a full pet inventory can't swallow the day's egg.
+	if reward.EggId and PetRules.inventoryCount(data) >= GameConfig.Pets.MaxInventory then
+		return { Ok = false, Message = "Your pet inventory is full! Delete or merge a pet, then claim." }
+	end
 	local streak = (if status.StreakResets then 0 else data.Daily.Streak) + 1
 	DataService.set(player, { "Daily" }, { Streak = streak, LastClaimTime = now })
 	local pet = grantReward(player, reward)

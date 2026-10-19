@@ -306,6 +306,17 @@ local function watchDots()
 			data ~= nil and PetRules.inventoryCount(data) == 0 and PetRules.eggStatus(data, "Basic", 1).CanBuy
 		)
 	end
+	-- One serve sends several patches; recompute the dots once, at the end of the frame.
+	local pending = false
+	local function schedule()
+		if not pending then
+			pending = true
+			task.defer(function()
+				pending = false
+				update()
+			end)
+		end
+	end
 	DataController.Changed:Connect(function(path: { any })
 		local key = path[1]
 		if
@@ -324,7 +335,7 @@ local function watchDots()
 			or key == "RebirthTokens"
 			or key == "Skills"
 		then
-			update()
+			schedule()
 		end
 	end)
 	DataController.waitForData()

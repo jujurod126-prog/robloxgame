@@ -12,7 +12,6 @@
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -23,8 +22,6 @@ local Neighborhoods = require(Shared.Data.Neighborhoods)
 local player = Players.LocalPlayer
 
 local FADE = TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
--- How fast the shown clock catches up with the server clock (fraction per second).
-local CLOCK_FOLLOW_RATE = 2
 
 local ZoneController = {}
 
@@ -70,19 +67,12 @@ local function applyArea(areaId: string)
 	}):Play()
 end
 
--- Eases Lighting.ClockTime toward the server clock every frame, going the short
--- way round midnight (23.9 -> 0.1 moves forward, not back through the day).
-local function followClock(deltaTime: number)
+-- Copies the server clock into Lighting whenever it changes (every 2 s, a tiny
+-- step). Moving the sun every frame would make phones redo lighting constantly.
+local function followClock()
 	local target = Workspace:GetAttribute("ClockTime") :: number?
-	if target == nil then
-		return
-	end
-	local current = Lighting.ClockTime
-	local difference = (target - current + 12) % 24 - 12
-	if math.abs(difference) > 6 then
-		Lighting.ClockTime = target -- far off (just joined): jump
-	else
-		Lighting.ClockTime = (current + difference * math.min(1, deltaTime * CLOCK_FOLLOW_RATE)) % 24
+	if target then
+		Lighting.ClockTime = target % 24
 	end
 end
 
@@ -101,7 +91,8 @@ function ZoneController.Start()
 	end
 	player:GetAttributeChangedSignal("Neighborhood"):Connect(update)
 	update()
-	RunService.RenderStepped:Connect(followClock)
+	Workspace:GetAttributeChangedSignal("ClockTime"):Connect(followClock)
+	followClock()
 end
 
 return ZoneController

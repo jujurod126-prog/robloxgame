@@ -199,7 +199,9 @@ function settle(session: Session, customer: Customer, correct: boolean)
 	if correct then
 		DataService.increment(player, { "Stats", "PerfectOrders" }, 1)
 		changeReputation(player, GameConfig.Reputation.CorrectOrder + customer.def.ReputationBonus)
-		if customer.def.GivesCollectible then
+		-- Only for the rarity they asked for (the loadout may have changed while they walked in).
+		local demanded = customer.def.DemandsRarity
+		if customer.def.GivesCollectible and (demanded == nil or Flavors[order.FlavorId].Rarity == demanded) then
 			awardCriticTrophy(player, order.FlavorId)
 		end
 	else
@@ -402,6 +404,9 @@ function CustomerService.Start()
 
 	-- Bigger serving capacity (upgrades, new truck tier) means more customers at once.
 	DataService.Changed:Connect(function(player: Player, path: { any })
+		if #path == 0 and combos[player] then
+			setCombo(player, 0) -- data was wiped
+		end
 		local session = sessions[player]
 		if session and (#path == 0 or path[1] == "Truck") then
 			fill(session)

@@ -10,7 +10,10 @@
 	    ExtraPetSlots +2 pet slots (PetRules.equipSlots)
 	    VipTruck      golden truck paint (TruckService) + [VIP] chat tag (Player attribute "VIP")
 	  Developer products (Gem packs): granted in ProcessReceipt; each PurchaseId is
-	  remembered in PlayerData.Purchases.ReceiptIds so a receipt is never paid twice.
+	  remembered in PlayerData.Purchases.ReceiptIds so a receipt is never paid twice,
+	  and confirmed to Roblox only after that is saved.
+	Game passes are always confirmed with UserOwnsGamePassAsync (never trust the
+	client-side "purchase finished" event).
 	Passes and products whose id is still 0 in Modules/Assets are skipped.
 ]]
 
@@ -80,6 +83,13 @@ local function onPassPurchased(player: Player, numericId: number, purchased: boo
 	Notify.celebrate(player, "Purchase")
 end
 
+local SAVE_CONFIRM_TIMEOUT = 15 -- seconds to wait for the DataStore before letting Roblox retry
+
+--[[
+	Grants a Gem pack. Roblox keeps retrying until we return PurchaseGranted, so we
+	only return it once the receipt id is in the SAVED data. That means a crash or
+	failed save can never lose a paid purchase, and the id check means it's never paid twice.
+]]
 local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	local data = player and DataService.getData(player)
@@ -87,34 +97,38 @@ local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
 		return Enum.ProductPurchaseDecision.NotProcessedYet -- Roblox retries later
 	end
 	local receiptId = tostring(receipt.PurchaseId)
-	if table.find(data.Purchases.ReceiptIds, receiptId) then
-		return Enum.ProductPurchaseDecision.PurchaseGranted -- already paid out
+
+	if not table.find(data.Purchases.ReceiptIds, receiptId) then
+		local product = nil
+		for _, candidate in Products.DevProducts do
+			if candidate.ProductId == receipt.ProductId and not Assets.isPlaceholder(candidate.ProductId) then
+				product = candidate
+			end
+		end
+		if product == nil then
+			warn(`[MarketService] Unknown product {receipt.ProductId}`)
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+
+		-- Pay and remember the receipt together (no yield in between).
+		EconomyService.awardGems(player, product.Gems)
+		DataService.update(player, { "Purchases", "ReceiptIds" }, function(list: { string })
+			local updated = table.clone(list)
+			table.insert(updated, receiptId)
+			while #updated > GameConfig.Data.MaxReceiptHistory do
+				table.remove(updated, 1)
+			end
+			return updated
+		end)
+		Notify.send(player, `+{product.Gems} Gems! Thank you!`, "Info")
+		Notify.celebrate(player, "Purchase")
 	end
 
-	local product = nil
-	for _, candidate in Products.DevProducts do
-		if candidate.ProductId == receipt.ProductId and not Assets.isPlaceholder(candidate.ProductId) then
-			product = candidate
-		end
-	end
-	if product == nil then
-		warn(`[MarketService] Unknown product {receipt.ProductId}`)
-		return Enum.ProductPurchaseDecision.NotProcessedYet
-	end
-
-	EconomyService.awardGems(player, product.Gems)
-	-- Remember the receipt (keep the list short).
-	DataService.update(player, { "Purchases", "ReceiptIds" }, function(list: { string })
-		local updated = table.clone(list)
-		table.insert(updated, receiptId)
-		while #updated > GameConfig.Data.MaxReceiptHistory do
-			table.remove(updated, 1)
-		end
-		return updated
-	end)
-	Notify.send(player, `+{product.Gems} Gems! Thank you!`, "Info")
-	Notify.celebrate(player, "Purchase")
-	return Enum.ProductPurchaseDecision.PurchaseGranted
+	local saved = DataService.saveAndConfirm(player, function(savedData: any): boolean
+		local ids = savedData and savedData.Purchases and savedData.Purchases.ReceiptIds
+		return type(ids) == "table" and table.find(ids, receiptId) ~= nil
+	end, SAVE_CONFIRM_TIMEOUT)
+	return if saved then Enum.ProductPurchaseDecision.PurchaseGranted else Enum.ProductPurchaseDecision.NotProcessedYet
 end
 
 -- Everyone's client reads this for the chat tag (PlayerData only reaches its owner).
@@ -142,6 +156,9 @@ function MarketService.Start()
 		task.spawn(refreshPasses, player)
 	end)
 	DataService.Changed:Connect(function(player: Player, path: { any })
+		if #path == 0 then
+			task.spawn(refreshPasses, player) -- data was wiped: ask Roblox again
+		end
 		if #path == 0 or path[1] == "OwnedPasses" then
 			updateVipAttribute(player)
 		end

@@ -28,6 +28,15 @@
       "$properties": {
         "ResetPlayerGuiOnSpawn": false
       }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "StreamingEnabled": true,
+        "StreamingTargetRadius": 512,
+        "StreamingMinRadius": 128,
+        "StreamOutBehavior": "Opportunistic"
+      }
     }
   }
 }

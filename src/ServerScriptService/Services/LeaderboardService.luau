@@ -55,8 +55,8 @@ local function warnOnce(message: string)
 	end
 end
 
-local function saveScores(player: Player)
-	local data = DataService.getData(player)
+local function saveScores(player: Player, leavingData: PlayerData?)
+	local data = leavingData or DataService.getData(player)
 	-- Studio test commands (/coins) would otherwise put fake scores on the real boards.
 	if data == nil or RunService:IsStudio() then
 		return
@@ -127,9 +127,8 @@ function LeaderboardService.Init()
 end
 
 function LeaderboardService.Start()
-	Players.PlayerRemoving:Connect(function(player)
-		task.spawn(saveScores, player)
-	end)
+	-- Releasing hands us the data just before the profile is closed.
+	DataService.Releasing:Connect(saveScores)
 	task.spawn(function()
 		task.wait(10) -- let the first players load
 		while true do

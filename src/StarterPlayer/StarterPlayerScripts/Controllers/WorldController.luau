@@ -152,12 +152,18 @@ function WorldController.Start()
 	-- With StreamingEnabled, far-away parts arrive later.
 	world.DescendantAdded:Connect(setup)
 
+	-- Coins change on every serve: refresh the gates at most once per frame.
+	local pending = false
 	DataController.Changed:Connect(function(path: { any })
 		local key = path[1]
-		if #path == 0 or key == "Neighborhoods" or key == "Coins" or key == "Rebirths" then
-			for _, gate in gates do
-				updateGate(gate)
-			end
+		if not pending and (#path == 0 or key == "Neighborhoods" or key == "Coins" or key == "Rebirths") then
+			pending = true
+			task.defer(function()
+				pending = false
+				for _, gate in gates do
+					updateGate(gate)
+				end
+			end)
 		end
 	end)
 end
