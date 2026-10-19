@@ -106,6 +106,9 @@ export type PlayerData = {
 		Step: number,
 	},
 
+	-- Game passes this player owns (refreshed from Roblox on join): pass id -> true
+	OwnedPasses: { [string]: boolean },
+
 	-- Robux purchase bookkeeping (stops a developer product being granted twice)
 	Purchases: {
 		ReceiptIds: { string }, -- most recent processed PurchaseIds, capped in MarketService

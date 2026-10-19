@@ -52,10 +52,13 @@ src/
     Types/     Luau types for PlayerData and every data table
   ServerScriptService/
     Main.server.luau   boots every service (Init, then Start)
-    Services/  DataService (saving + sync) and stubs for later stages
+    Services/  one per system: Data, Economy, Truck, Neighborhood, Cone, Customer, Upgrade,
+               Flavor, Pet, Quest, Rebirth, Event (day/night, weather, Rush Hour),
+               Leaderboard, Market (Robux), Settings, DevCommands
     Modules/   DataTemplate, DataMigrations, RateLimiter, GameDataValidation, Orders,
                Customer/CustomerRig/CustomerPicker, World/ (WorldBuilder + Props)
     Packages/  ProfileStore (vendored, unmodified, see third_party/)
+  ReplicatedFirst/LoadingScreen.client.luau   the loading screen
   StarterPlayer/StarterPlayerScripts/
     Main.client.luau   boots every controller
     Controllers/       DataController (client data copy), HUD, shop, notifications, ...
@@ -95,6 +98,7 @@ These only work in Studio and are typed into chat:
 | `/rep <stars>`   | Set your Reputation (1-5) to test special customers |
 | `/skipday`       | Pretend a day passed (daily reward ready, new quests within a minute) |
 | `/wipe`          | Reset your data to a brand-new player     |
+| `/pass <id>`     | Toggle a game pass on/off for testing: `DoubleCoins`, `AutoServe`, `ExtraPetSlots`, `VipTruck` |
 
 ## Art (sprite sheets)
 

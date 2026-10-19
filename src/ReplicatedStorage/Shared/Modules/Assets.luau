@@ -88,6 +88,12 @@ local Assets = {
 	SFX_CUSTOMER_HAPPY = PLACEHOLDER_ASSET,
 	SFX_CUSTOMER_SAD = PLACEHOLDER_ASSET,
 	SFX_ERROR = PLACEHOLDER_ASSET,
+	SFX_CONFETTI = PLACEHOLDER_ASSET, -- celebrations (unlocks, rebirth, golden pet)
+	AMBIENT_RAIN = PLACEHOLDER_ASSET, -- looping rain sound during rain weather
+
+	-- ===== Effects =====
+	TEXTURE_RAIN_DROP = PLACEHOLDER_ASSET, -- rain particle; a built-in texture is used until set
+	TEXTURE_CONFETTI = PLACEHOLDER_ASSET, -- confetti piece; plain squares are used until set
 
 	-- ===== Badges (numeric IDs from the Creator Dashboard) =====
 	BADGE_FIRST_CUSTOMER = PLACEHOLDER_ID,

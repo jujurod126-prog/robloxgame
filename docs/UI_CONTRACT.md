@@ -58,9 +58,14 @@ DataController.Changed:Connect(function(path, value) ... end)
 | `ClaimQuest` | RemoteFunction | Client → Server | `questIndex: number` (1-3, today's quests) | `{ Ok, Message }` | Purchase limit | 7 |
 | `ClaimDaily` | RemoteFunction | Client → Server | none | `{ Ok, Message, Pets? }` (Pets when the day's reward includes an egg) | Purchase limit | 7 |
 | `ClaimAchievement` | RemoteFunction | Client → Server | `achievementId: string` | `{ Ok, Message }` | Purchase limit | 7 |
+| `EventBanner` | RemoteEvent | Server → Client | `text: string, seconds: number, kind: "RushHour" \| "Weather"` (sent to everyone) | — | — | 8 |
+| `Celebrate` | RemoteEvent | Server → Client | `kind: "Unlock" \| "Rebirth" \| "Golden" \| "Purchase"` (confetti + shake) | — | — | 8 |
+| `UpdateSettings` | RemoteFunction | Client → Server | `{ MusicVolume?, SfxVolume?, ShowTips?, ShowPopups? }` (volumes clamped 0-1, toggles must be booleans, other keys ignored) | `{ Ok, Message }` | 10 per second | 8 |
+| `TutorialProgress` | RemoteFunction | Client → Server | `step: number, completed: boolean` (step only moves forward, max 20) | `{ Ok, Message }` | 10 per second | 8 |
 
-*Later stages add rows here, for example
-`UnlockFlavor(flavorId)` and `HatchEgg(eggId, count)`.*
+Robux purchases use Roblox's own prompts (`PromptGamePassPurchase`, `PromptProductPurchase`), not
+our remotes. The server checks pass ownership with Roblox (`UserOwnsGamePassAsync`) and grants Gem
+packs in `ProcessReceipt`, so nothing the client says is trusted.
 
 ## World interactions (no remotes)
 
@@ -97,6 +102,22 @@ on your screen. The server still checks access at the pad.
 | `Combo` | number | Correct orders in a row (set by CustomerService; 0 after a wrong or lost customer) |
 | `Neighborhood` | string | The area you're in: `"Hub"` or a neighborhood id. Drives lighting, music and the HUD name |
 | `EquippedPets` | string | Your equipped pets for everyone to see, e.g. `"Penguin:Normal,Cow:Golden"` (drawn by PetFollowController) |
+| `RushHourEnds` | number | `Workspace:GetServerTimeNow()` time your Rush Hour ends (includes the Longer Rush Hour skill) |
+| `FriendBonus` | boolean? | `true` while a friend is in the server (+10% Coins) |
+| `VIP` | boolean? | Owns the VIP Truck pass. Set on every player so everyone's chat can show the tag |
+| `DataReady` | boolean | Set **locally** by DataController when the first snapshot arrives (the loading screen waits for it) |
+
+**On Workspace** (set by EventService):
+
+| Attribute | Type | Meaning |
+|-----------|------|---------|
+| `ClockTime` | number | Shared day/night clock, 0-24 (a full day is 20 minutes). Clients ease `Lighting.ClockTime` toward it |
+| `TimeOfDay` | string | `"Day"`, `"Sunset"` or `"Night"` |
+| `Weather` | string | `"Clear"`, `"Rain"` (customers walk slower) or `"Heatwave"` (customers come twice as often) |
+| `RushHourEnds` | number | Server time the current server-wide Rush Hour ends (0 = none yet) |
+
+`ReplicatedStorage.Leaderboards` has JSON StringValues `MostCoins` and `MostRebirths`:
+`[{ "Rank": 1, "Name": "...", "Value": 123 }]`. LeaderboardService refreshes them every 2 minutes.
 
 **On each truck model** in `Workspace.Trucks`: `OwnerUserId`, `OwnerName`, `Tier`, `Neighborhood`,
 `CounterZ`, `StandZ` and `Width`. The dispenser prompt also has a `ScoopSeconds` attribute.
@@ -150,7 +171,8 @@ Collectibles       { GoldenSprinkles: { [id]: true }, CriticTrophies: { [id]: tr
 Stats              { CustomersServed, PerfectOrders, ScoopsMade, CoinsEarnedTotal,
                      HighestCombo, EggsHatched, GoldenSprinklesFound, PlaySeconds }
 Settings           { MusicVolume 0-1, SfxVolume 0-1, ShowTips, ShowPopups }
-Tutorial           { Completed, Step }
+Tutorial           { Completed, Step } (Step = tutorial steps finished)
+OwnedPasses        { [passId]: true } (from Roblox on join, or after buying; keys of Products.GamePasses)
 Purchases.ReceiptIds { purchaseId } (server bookkeeping; the UI ignores it)
 ```
 

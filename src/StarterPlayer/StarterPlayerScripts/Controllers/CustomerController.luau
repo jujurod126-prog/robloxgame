@@ -6,7 +6,7 @@
 	    topping and a draining patience bar (clock bar sprite)
 	  * reaction emote when they leave: heart-eyes / happy / sad / angry
 	  * hides other players' Serve prompts
-	  * floating "+Coins" (and combo multiplier) above a customer who pays
+	  * floating "+Coins" (and combo multiplier) above a customer who pays (Settings.ShowPopups)
 	  * a camera flash when an Influencer reaches your counter
 	Reads the customer model's attributes; see docs/UI_CONTRACT.md.
 ]]
@@ -28,6 +28,7 @@ local UI = script.Parent.Parent.UI
 local Cleaner = require(UI.Cleaner)
 local Theme = require(UI.Theme)
 local UILib = require(UI.UILib)
+local DataController = require(script.Parent.DataController)
 
 local player = Players.LocalPlayer
 local Colors = Theme.Colors
@@ -228,6 +229,12 @@ end
 
 -- Floating "+12" (and "x1.3" during a combo) above the customer who just paid.
 local function showCoinPopup(position: Vector3, coins: number, correct: boolean, comboMultiplier: number?)
+	UILib.playSound(Assets.SFX_CASH_REGISTER)
+	UILib.playSound(if correct then Assets.SFX_CUSTOMER_HAPPY else Assets.SFX_CUSTOMER_SAD, 1, 0.4)
+	local data = DataController.getData()
+	if data and not data.Settings.ShowPopups then
+		return -- turned off in Settings
+	end
 	local anchor = Instance.new("Part")
 	anchor.Name = "CoinPopupAnchor"
 	anchor.Anchored = true
@@ -252,7 +259,6 @@ local function showCoinPopup(position: Vector3, coins: number, correct: boolean,
 	UILib.outlinedText(label)
 	label.TextColor3 = if correct then Colors.Coin else Colors.Orange
 
-	UILib.playSound(Assets.SFX_CASH_REGISTER)
 	local rise = TweenService:Create(billboard, TweenInfo.new(1.2, Enum.EasingStyle.Quad), {
 		StudsOffsetWorldSpace = Vector3.new(0, 3, 0),
 	})

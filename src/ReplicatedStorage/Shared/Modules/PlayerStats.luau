@@ -4,7 +4,8 @@
 	Turns saved PlayerData into the numbers gameplay uses (scoop time, walk
 	speed, cone size...). Server uses these to run the game; the client may use
 	them to display stats. Equipped pets boost Coins, walk speed, scoop speed and
-	tips here; game-pass boosts get added in Stage 8.
+	tips; the 2x Coins game pass doubles Coins. (The friend bonus is server-only,
+	see EconomyService.)
 ]]
 
 local Shared = script.Parent.Parent
@@ -92,7 +93,8 @@ end
 
 -- Multiplier applied to every Coin the player earns.
 function PlayerStats.coinMultiplier(data: PlayerData): number
-	return Formulas.rebirthCoinMultiplier(data.Rebirths) * (1 + PetRules.totalBoosts(data).CoinMultiplier)
+	local pass = if data.OwnedPasses.DoubleCoins then 2 else 1
+	return Formulas.rebirthCoinMultiplier(data.Rebirths) * (1 + PetRules.totalBoosts(data).CoinMultiplier) * pass
 end
 
 return PlayerStats

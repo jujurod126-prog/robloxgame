@@ -22,6 +22,7 @@ local ShopRules = require(Shared.Modules.ShopRules)
 local Trucks = require(Shared.Data.Trucks)
 local Upgrades = require(Shared.Data.Upgrades)
 
+local Notify = require(script.Parent.Parent.Modules.Notify)
 local RateLimiter = require(script.Parent.Parent.Modules.RateLimiter)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -88,6 +89,7 @@ local function buyTruckTier(player: Player, tier: unknown): PurchaseResult
 	end
 
 	DataService.set(player, { "Truck", "Tier" }, tier)
+	Notify.celebrate(player, "Unlock")
 	return { Ok = true, Message = `You got the {truck.DisplayName}!` }
 end
 

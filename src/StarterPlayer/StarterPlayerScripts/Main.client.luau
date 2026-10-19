@@ -18,6 +18,8 @@ local CONTROLLER_ORDER: { ModuleScript } = {
 	Controllers.TruckController,
 	Controllers.WorldController,
 	Controllers.ZoneController,
+	Controllers.WeatherController,
+	Controllers.LeaderboardController,
 	Controllers.CustomerController,
 	Controllers.ShopController,
 	Controllers.FlavorController,
@@ -26,6 +28,10 @@ local CONTROLLER_ORDER: { ModuleScript } = {
 	Controllers.RebirthController,
 	Controllers.QuestController,
 	Controllers.DailyRewardController,
+	Controllers.SettingsController,
+	Controllers.StoreController,
+	Controllers.JuiceController,
+	Controllers.ChatTagController,
 	Controllers.TutorialController,
 }
 

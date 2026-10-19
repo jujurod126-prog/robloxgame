@@ -124,8 +124,22 @@ and Tips add to the Tip Bonus.
   truck tier and upgrades, and keeps everything else.
 - **Skills** (Tokens): Faster Customers (+10% to +50% arrival speed), Starting Coins (500 to 250K),
   Bigger Tips (+10% to +50%, needs Faster Customers 1), Longer Rush Hour (+10s to +50s, needs Faster
-  Customers 2, takes effect in Stage 8), Extra Pet Slot (+1/+2, needs Starting Coins 2).
+  Customers 2), Extra Pet Slot (+1/+2, needs Starting Coins 2).
 - **Daily quests**: 3 a day, re-rolled at 00:00 UTC, each at a random easy/medium/hard tier.
 - **Daily login**: claim every 20 hours. Missing more than 48 hours resets the streak. Day 7 gives
   50 Gems and a Rainbow Egg, then the calendar loops.
 - **Achievements**: 8, each with a Gem reward and an optional badge.
+
+## Events, passes and social (Stage 8)
+
+- **Day/night**: one in-game day = 20 minutes, shared by everyone in the server. Day 6:00-17:00 (more
+  kids), Sunset 17:00-19:30 (more tourists), Night otherwise.
+- **Weather**: rolled every 4-6 minutes. Rain (15%, 2 min): customers walk at 70% speed.
+  Heatwave (10%, 90 s): customers arrive twice as often.
+- **Rush Hour**: every 8-10 minutes, lasts 60 s (+ Longer Rush Hour skill). Customers arrive twice as
+  often, and everyone online gets +5 Gems. It stacks with a heatwave (x4 arrivals).
+- **Friend bonus**: +10% Coins while at least one friend is in the same server.
+- **Game passes**: 2x Coins (multiplies everything else), Auto-Serve (serves one waiting customer
+  every 5 s, or every 1 s during a Deluxe/Rocket/UFO truck burst), +2 Pet Slots, VIP Truck (gold
+  paint + chat tag).
+- **Gem packs**: 100 / 550 / 1,200 Gems.

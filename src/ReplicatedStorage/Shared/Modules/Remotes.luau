@@ -15,7 +15,7 @@ local RunService = game:GetService("RunService")
 local FOLDER_NAME = "Remotes"
 local WAIT_TIMEOUT = 30
 
-export type EventName = "DataPatch" | "OrderResult" | "Notify" | "SelectFlavor"
+export type EventName = "DataPatch" | "OrderResult" | "Notify" | "SelectFlavor" | "EventBanner" | "Celebrate"
 export type FunctionName =
 	"GetSnapshot"
 	| "BuyUpgrade"
@@ -35,6 +35,8 @@ export type FunctionName =
 	| "ClaimQuest"
 	| "ClaimDaily"
 	| "ClaimAchievement"
+	| "UpdateSettings"
+	| "TutorialProgress"
 
 -- Add new names to BOTH the type above and the list below.
 local EVENT_NAMES: { EventName } = {
@@ -42,6 +44,8 @@ local EVENT_NAMES: { EventName } = {
 	"OrderResult", -- Server -> Client: (position: Vector3, coins: number, correct: boolean, comboMultiplier: number)
 	"Notify", -- Server -> Client: (message: string, kind: "Info" | "Error")
 	"SelectFlavor", -- Client -> Server: (slot: number) choose which loaded flavor the dispenser scoops
+	"EventBanner", -- Server -> Client: (text: string, seconds: number, kind: "RushHour" | "Weather")
+	"Celebrate", -- Server -> Client: (kind: "Unlock" | "Rebirth" | "Golden" | "Purchase") confetti + shake
 }
 
 local FUNCTION_NAMES: { FunctionName } = {
@@ -63,6 +67,8 @@ local FUNCTION_NAMES: { FunctionName } = {
 	"ClaimQuest", -- Client -> Server: (questIndex: number) -> PurchaseResult
 	"ClaimDaily", -- Client -> Server: () -> HatchResult (Pets set when the reward includes an egg)
 	"ClaimAchievement", -- Client -> Server: (achievementId: string) -> PurchaseResult
+	"UpdateSettings", -- Client -> Server: (settings: { MusicVolume?, SfxVolume?, ShowTips?, ShowPopups? }) -> PurchaseResult
+	"TutorialProgress", -- Client -> Server: (step: number, completed: boolean) -> PurchaseResult
 }
 
 -- What HatchEgg returns: the pets that came out, in order, for the hatch animation.

@@ -31,6 +31,7 @@ local SERVICE_ORDER: { ModuleScript } = {
 	Services.EventService,
 	Services.LeaderboardService,
 	Services.MarketService,
+	Services.SettingsService,
 	Services.DevCommandsService,
 }
 

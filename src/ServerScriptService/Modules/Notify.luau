@@ -17,4 +17,11 @@ function Notify.send(player: Player, message: string, kind: Kind?)
 	Remotes.event("Notify"):FireClient(player, message, kind or "Info")
 end
 
+export type CelebrateKind = "Unlock" | "Rebirth" | "Golden" | "Purchase"
+
+-- Confetti and a little screen shake for a big moment.
+function Notify.celebrate(player: Player, kind: CelebrateKind)
+	Remotes.event("Celebrate"):FireClient(player, kind)
+end
+
 return Notify

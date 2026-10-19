@@ -25,6 +25,7 @@ local RebirthSkills = require(Shared.Data.RebirthSkills)
 local Remotes = require(Shared.Modules.Remotes)
 local Upgrades = require(Shared.Data.Upgrades)
 
+local Notify = require(script.Parent.Parent.Modules.Notify)
 local RateLimiter = require(script.Parent.Parent.Modules.RateLimiter)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -66,6 +67,7 @@ local function rebirth(player: Player): PurchaseResult
 	DataService.set(player, { "Rebirths" }, newRebirths)
 	DataService.increment(player, { "RebirthTokens" }, GameConfig.Rebirth.TokensPerRebirth)
 
+	Notify.celebrate(player, "Rebirth")
 	local multiplier = Formulas.rebirthCoinMultiplier(newRebirths)
 	return {
 		Ok = true,

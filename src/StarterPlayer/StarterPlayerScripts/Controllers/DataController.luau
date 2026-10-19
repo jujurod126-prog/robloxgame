@@ -14,6 +14,7 @@
 	  DataController.observe("Coins", function(coins) ... end) -- runs now and on every change
 ]]
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -76,6 +77,8 @@ local function requestSnapshot()
 			if RunService:IsStudio() then
 				print(`[DataController] Data received: {(data :: PlayerData).Coins} Coins, seq {lastSeq}`)
 			end
+			-- The loading screen (ReplicatedFirst) waits for this. Local only.
+			Players.LocalPlayer:SetAttribute("DataReady", true)
 			DataController.Ready:Fire(data)
 			return
 		end

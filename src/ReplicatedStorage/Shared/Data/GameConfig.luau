@@ -112,10 +112,26 @@ local GameConfig = {
 
 	World = {
 		DayNightCycleSeconds = 1200, -- one full in-game day
+		-- In-game hours: Day 6:00-17:00, Sunset 17:00-19:30, Night otherwise.
+		SunsetStartsAt = 17,
+		NightStartsAt = 19.5,
+		DayStartsAt = 6,
+		WeatherCheckMinSeconds = 240, -- how often a new weather roll happens
+		WeatherCheckMaxSeconds = 360,
 		Weather = {
 			Rain = { Chance = 0.15, DurationSeconds = 120, CustomerSpeedMultiplier = 0.7 },
 			Heatwave = { Chance = 0.1, DurationSeconds = 90, DemandMultiplier = 2 },
 		},
+	},
+
+	AutoServe = {
+		PassIntervalSeconds = 5, -- Auto-Serve game pass: serves one waiting customer this often
+		BurstIntervalSeconds = 1, -- during a truck's auto-serve burst
+	},
+
+	Leaderboards = {
+		RefreshSeconds = 120, -- how often scores are saved and the top lists re-read
+		TopCount = 10,
 	},
 
 	Social = {

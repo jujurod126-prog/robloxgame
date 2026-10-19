@@ -151,6 +151,7 @@ local function unlock(player: Player, neighborhoodId: string)
 	end
 	DataService.set(player, { "Neighborhoods", "Unlocked", neighborhoodId }, true)
 	Notify.send(player, `{neighborhood.DisplayName} unlocked! Step on the pad to go there.`, "Info")
+	Notify.celebrate(player, "Unlock")
 end
 
 local function playerFromHit(hit: BasePart): Player?

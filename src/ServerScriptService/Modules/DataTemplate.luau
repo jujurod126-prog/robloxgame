@@ -110,6 +110,8 @@ local template: PlayerData = {
 		Step = 0,
 	},
 
+	OwnedPasses = {},
+
 	Purchases = {
 		ReceiptIds = {},
 	},

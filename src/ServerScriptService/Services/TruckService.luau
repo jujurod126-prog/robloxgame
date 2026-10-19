@@ -3,7 +3,7 @@
 	TruckService
 	Every player has one truck, parked on a lot in the neighborhood they're
 	working in. NeighborhoodService decides where (placeTruck); this service
-	builds, moves, rebuilds (tier/cosmetic change) and removes it, and applies
+	builds, moves, rebuilds (tier/cosmetic/VIP pass change) and removes it, and applies
 	truck stats to the character (walk speed).
 
 	Signals:
@@ -32,6 +32,7 @@ type PlayerData = PlayerDataTypes.PlayerData
 
 local DEFAULT_PAINT = Color3.fromRGB(250, 250, 245)
 local DEFAULT_AWNING = Color3.fromRGB(255, 110, 140)
+local VIP_PAINT = Color3.fromRGB(255, 200, 60) -- VIP Truck game pass: golden paint
 local GROUND_RAY_HEIGHT = 200
 
 type Parking = { area: string, lot: number }
@@ -109,8 +110,15 @@ local function cosmeticColor(id: string, fallback: Color3): Color3
 end
 
 local function buildTruck(player: Player, data: PlayerData, spot: Parking): Model
+	-- VIP pass owners get gold paint unless they picked a bought paint cosmetic.
+	local paintId = data.Truck.Equipped.Paint
+	local paint = cosmeticColor(paintId, DEFAULT_PAINT)
+	local paintCosmetic = Cosmetics[paintId]
+	if data.OwnedPasses.VipTruck and (paintCosmetic == nil or paintCosmetic.Price == 0) then
+		paint = VIP_PAINT
+	end
 	local model = TruckBuilder.build(PlayerStats.truck(data), {
-		Paint = cosmeticColor(data.Truck.Equipped.Paint, DEFAULT_PAINT),
+		Paint = paint,
 		Awning = cosmeticColor(data.Truck.Equipped.Awning, DEFAULT_AWNING),
 	}, lotPivot(spot.area, spot.lot))
 	model.Name = `Truck_{player.UserId}`
@@ -242,6 +250,8 @@ function TruckService.Start()
 				rebuildTruck(player)
 			end
 			applyWalkSpeed(player)
+		elseif path[1] == "OwnedPasses" and path[2] == "VipTruck" then
+			rebuildTruck(player)
 		elseif path[1] == "Pets" or path[1] == "Skills" then
 			applyWalkSpeed(player) -- pet speed boosts
 		end

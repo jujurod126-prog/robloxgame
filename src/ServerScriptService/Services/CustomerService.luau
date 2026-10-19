@@ -37,6 +37,7 @@ local Orders = require(ServerModules.Orders)
 local ConeService = require(script.Parent.ConeService)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
+local EventService = require(script.Parent.EventService)
 local NeighborhoodService = require(script.Parent.NeighborhoodService)
 local TruckService = require(script.Parent.TruckService)
 
@@ -137,6 +138,8 @@ local function awardCriticTrophy(player: Player, flavorId: string)
 	end
 end
 
+local settle: (session: Session, customer: Customer, correct: boolean) -> ()
+
 local function onServe(session: Session, customer: Customer, player: Player)
 	if player ~= session.player or customer.state ~= "Waiting" or customer.order == nil then
 		return
@@ -155,9 +158,22 @@ local function onServe(session: Session, customer: Customer, player: Player)
 		return
 	end
 
+	local correct = Orders.isCorrect(customer.order :: Customer.Order, ConeService.takeCone(player))
+	settle(session, customer, correct)
+end
+
+--[[
+	Pays for an order and sends the customer off: combo, payout, stats, Reputation,
+	critic trophy, coin popup, mood. Used by manual serving and by auto-serve.
+]]
+function settle(session: Session, customer: Customer, correct: boolean)
+	local player = session.player
+	local data = DataService.getData(player)
+	if data == nil or customer.order == nil then
+		return
+	end
 	local order = customer.order :: Customer.Order
 	local patience = Customer.patienceFraction(customer)
-	local correct = Orders.isCorrect(order, ConeService.takeCone(player))
 
 	-- Combo counts this order before paying, so the 5th correct order in a row already gets x1.1.
 	local combo = if correct then (combos[player] or 0) + 1 else 0
@@ -254,9 +270,15 @@ function fill(session: Session)
 		return
 	end
 	local capacity = capacityFor(session)
-	-- Faster Customers skill: shorter wait before the next customer walks up.
+	-- Faster Customers skill, Rush Hour and heatwaves all shorten the wait before the next customer.
 	local data = DataService.getData(session.player)
 	local speedUp = 1 + (if data then RebirthRules.skillValue(data, "FasterCustomers") else 0)
+	if EventService.isRushHour(session.player) then
+		speedUp *= GameConfig.RushHour.SpawnRateMultiplier
+	end
+	if Workspace:GetAttribute("Weather") == "Heatwave" then
+		speedUp *= GameConfig.World.Weather.Heatwave.DemandMultiplier
+	end
 	local occupied = 0
 	for _ in session.spots do
 		occupied += 1
@@ -270,6 +292,43 @@ function fill(session: Session)
 			occupied += 1
 			local delay = random:NextNumber(flow.ArriveDelayMin, flow.ArriveDelayMax) / speedUp
 			task.delay(delay, spawnCustomer, session, spotIndex)
+		end
+	end
+end
+
+-- ===== Auto-serve (game pass, and the truck's auto-serve burst) =====
+
+local lastAutoServe: { [Player]: number } = {}
+
+-- True if this player's truck should auto-serve right now, and how often.
+local function autoServeInterval(player: Player): number?
+	local data = DataService.getData(player)
+	if data == nil then
+		return nil
+	end
+	local burst = PlayerStats.truck(data).AutoServeBurst
+	if burst and (os.clock() % burst.Interval) < burst.Duration then
+		return GameConfig.AutoServe.BurstIntervalSeconds
+	end
+	if data.OwnedPasses.AutoServe then
+		return GameConfig.AutoServe.PassIntervalSeconds
+	end
+	return nil
+end
+
+local function autoServeTick()
+	local now = os.clock()
+	for player, session in sessions do
+		local interval = autoServeInterval(player)
+		if interval and now - (lastAutoServe[player] or 0) >= interval then
+			for _, entry in session.spots do
+				if type(entry) == "table" and entry.state == "Waiting" then
+					lastAutoServe[player] = now
+					-- Own thread: settling waits while the customer walks away.
+					task.spawn(settle, session, entry, true) -- auto-serve always gets the order right
+					break
+				end
+			end
 		end
 	end
 end
@@ -331,6 +390,14 @@ function CustomerService.Start()
 	Players.PlayerRemoving:Connect(function(player)
 		endSession(player)
 		combos[player] = nil
+		lastAutoServe[player] = nil
+	end)
+
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+			autoServeTick()
+		end
 	end)
 
 	-- Bigger serving capacity (upgrades, new truck tier) means more customers at once.

@@ -3,31 +3,33 @@
 	ZoneController
 	When you arrive in an area (Player attribute "Neighborhood"), smoothly changes
 	this client's lighting to that area's look (Shared/Data/Neighborhoods Lighting:
-	time of day, ambient, Atmosphere, ColorCorrection) and crossfades its music.
-	Lighting changes here are local to this player.
+	ambient, Atmosphere, ColorCorrection). Lighting changes here are local to this player.
+	The time of day follows the server's day/night clock (Workspace attribute
+	ClockTime from EventService); an area's own ClockTime is only used until that
+	attribute exists. Music lives in SoundController.
 ]]
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SoundService = game:GetService("SoundService")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage.Shared
-local Assets = require(Shared.Modules.Assets)
 local GameConfig = require(Shared.Data.GameConfig)
 local Neighborhoods = require(Shared.Data.Neighborhoods)
 
 local player = Players.LocalPlayer
 
 local FADE = TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-local MUSIC_VOLUME = 0.35
+-- How fast the shown clock catches up with the server clock (fraction per second).
+local CLOCK_FOLLOW_RATE = 2
 
 local ZoneController = {}
 
 local atmosphere: Atmosphere
 local colorCorrection: ColorCorrectionEffect
-local music: Sound?
 
 -- Finds an existing effect of this class in Lighting (yours from Studio) or makes one.
 local function ensure<T>(className: string, name: string): T
@@ -41,41 +43,16 @@ local function ensure<T>(className: string, name: string): T
 	return created :: any
 end
 
-local function playMusic(soundId: string)
-	if music and music.SoundId == soundId then
-		return
-	end
-	local old = music
-	if old then
-		local fade = TweenService:Create(old, FADE, { Volume = 0 })
-		fade.Completed:Connect(function()
-			old:Destroy()
-		end)
-		fade:Play()
-	end
-	music = nil
-	if Assets.isPlaceholder(soundId) then
-		return
-	end
-	local sound = Instance.new("Sound")
-	sound.Name = "ZoneMusic"
-	sound.SoundId = soundId
-	sound.Looped = true
-	sound.Volume = 0
-	sound.Parent = SoundService
-	sound:Play()
-	TweenService:Create(sound, FADE, { Volume = MUSIC_VOLUME }):Play()
-	music = sound
-end
-
 local function applyArea(areaId: string)
 	local area = Neighborhoods[areaId]
 	if area == nil then
 		return
 	end
 	local look = area.Lighting
+	if Workspace:GetAttribute("ClockTime") == nil then
+		Lighting.ClockTime = look.ClockTime
+	end
 	TweenService:Create(Lighting, FADE, {
-		ClockTime = look.ClockTime,
 		Ambient = look.Ambient,
 		OutdoorAmbient = look.Ambient,
 	}):Play()
@@ -91,7 +68,22 @@ local function applyArea(areaId: string)
 		Contrast = look.Contrast,
 		Brightness = look.Brightness,
 	}):Play()
-	playMusic(area.Music)
+end
+
+-- Eases Lighting.ClockTime toward the server clock every frame, going the short
+-- way round midnight (23.9 -> 0.1 moves forward, not back through the day).
+local function followClock(deltaTime: number)
+	local target = Workspace:GetAttribute("ClockTime") :: number?
+	if target == nil then
+		return
+	end
+	local current = Lighting.ClockTime
+	local difference = (target - current + 12) % 24 - 12
+	if math.abs(difference) > 6 then
+		Lighting.ClockTime = target -- far off (just joined): jump
+	else
+		Lighting.ClockTime = (current + difference * math.min(1, deltaTime * CLOCK_FOLLOW_RATE)) % 24
+	end
 end
 
 function ZoneController.Init()
@@ -109,6 +101,7 @@ function ZoneController.Start()
 	end
 	player:GetAttributeChangedSignal("Neighborhood"):Connect(update)
 	update()
+	RunService.RenderStepped:Connect(followClock)
 end
 
 return ZoneController

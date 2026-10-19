@@ -9,7 +9,7 @@
 	createScrollingGrid, createTabs, createWindow, createToast
 	Decorators: addCorner, addStroke, addGradient, addPadding, addAspect,
 	addSizeLimit, addTextLimit, addHoverEffect, addPressEffect
-	Motion & sound: tweenIn, tweenOut, playClickSound
+	Motion & sound: tweenIn, tweenOut, playClickSound, playSound, soundGroup
 
 	Sizing is scale-based, kept sane on every screen with UIAspectRatioConstraint
 	and UISizeConstraint. Buttons are at least Theme.Sizes.MinTapTarget.
@@ -112,21 +112,17 @@ end
 
 -- ===== Sound =====
 
-local clickSound: Sound? = nil
-
-function UILib.playClickSound()
-	if Assets.isPlaceholder(Assets.SFX_BUTTON_CLICK) then
-		return
+-- The "Music" / "SFX" SoundGroups in SoundService. SoundController sets their
+-- volumes from the player's settings; every sound joins one of them.
+function UILib.soundGroup(name: "Music" | "SFX"): SoundGroup
+	local existing = SoundService:FindFirstChild(name)
+	if existing and existing:IsA("SoundGroup") then
+		return existing
 	end
-	if clickSound == nil then
-		local sound = Instance.new("Sound")
-		sound.Name = "UIClick"
-		sound.SoundId = Assets.SFX_BUTTON_CLICK
-		sound.Volume = 0.5
-		sound.Parent = SoundService
-		clickSound = sound
-	end
-	SoundService:PlayLocalSound(clickSound :: Sound)
+	local group = Instance.new("SoundGroup")
+	group.Name = name
+	group.Parent = SoundService
+	return group
 end
 
 local soundCache: { [string]: Sound? } = {}
@@ -140,6 +136,7 @@ function UILib.playSound(soundId: string, playbackSpeed: number?, volume: number
 	if sound == nil then
 		local created = Instance.new("Sound")
 		created.SoundId = soundId
+		created.SoundGroup = UILib.soundGroup("SFX")
 		created.Parent = SoundService
 		soundCache[soundId] = created
 		sound = created
@@ -148,6 +145,10 @@ function UILib.playSound(soundId: string, playbackSpeed: number?, volume: number
 	playing.PlaybackSpeed = playbackSpeed or 1
 	playing.Volume = volume or 0.6
 	SoundService:PlayLocalSound(playing)
+end
+
+function UILib.playClickSound()
+	UILib.playSound(Assets.SFX_BUTTON_CLICK, 1, 0.5)
 end
 
 -- ===== Button effects =====

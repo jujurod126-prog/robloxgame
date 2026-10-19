@@ -96,9 +96,13 @@ function Customer.walkTo(customer: Customer, target: Vector3, faceDirection: Vec
 	local flat = Vector3.new(target.X - from.X, 0, target.Z - from.Z)
 	if flat.Magnitude > 0.05 then
 		root.CFrame = CFrame.lookAt(from, from + flat)
+		-- Rain makes everyone walk a bit slower.
+		local rainy = Workspace:GetAttribute("Weather") == "Rain"
+		local speed = GameConfig.CustomerFlow.WalkSpeed
+			* (if rainy then GameConfig.World.Weather.Rain.CustomerSpeedMultiplier else 1)
 		local tween = TweenService:Create(
 			root,
-			TweenInfo.new(flat.Magnitude / GameConfig.CustomerFlow.WalkSpeed, Enum.EasingStyle.Linear),
+			TweenInfo.new(flat.Magnitude / speed, Enum.EasingStyle.Linear),
 			{ CFrame = CFrame.lookAt(target, target + flat) }
 		)
 		customer.tween = tween

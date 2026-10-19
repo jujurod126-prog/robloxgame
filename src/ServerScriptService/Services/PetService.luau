@@ -23,6 +23,7 @@ local Pets = require(Shared.Data.Pets)
 local PlayerDataTypes = require(Shared.Types.PlayerData)
 local Remotes = require(Shared.Modules.Remotes)
 
+local Notify = require(script.Parent.Parent.Modules.Notify)
 local RateLimiter = require(script.Parent.Parent.Modules.RateLimiter)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -253,6 +254,7 @@ local function mergePets(player: Player, petId: unknown): PurchaseResult
 		table.insert(equipped, golden)
 	end
 	setEquipped(player, equipped)
+	Notify.celebrate(player, "Golden")
 	return { Ok = true, Message = `Golden {Pets[id].DisplayName} created!` }
 end
 

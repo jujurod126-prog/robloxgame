@@ -39,11 +39,14 @@ local BOOST_LABELS: { [GameData.PetBoostStat]: string } = {
 
 local PetRules = {}
 
--- How many pets can be equipped at once (base + Extra Pet Slot skill; game passes in Stage 8).
+local PASS_EXTRA_SLOTS = 2 -- the Extra Pet Slots game pass
+
+-- How many pets can be equipped at once (base + Extra Pet Slot skill + game pass).
 function PetRules.equipSlots(data: PlayerData): number
 	local skillLevel = data.Skills.ExtraPetSlot or 0
 	local fromSkill = if skillLevel > 0 then RebirthSkills.ExtraPetSlot.Values[skillLevel] else 0
-	return GameConfig.Pets.BaseEquipSlots + fromSkill
+	local fromPass = if data.OwnedPasses.ExtraPetSlots then PASS_EXTRA_SLOTS else 0
+	return GameConfig.Pets.BaseEquipSlots + fromSkill + fromPass
 end
 
 function PetRules.inventoryCount(data: PlayerData): number

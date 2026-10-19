@@ -9,6 +9,7 @@
 	/rep <stars>     set your Reputation (1 - 5), to test special customers
 	/skipday         pretend a day passed: daily reward claimable, new quests within a minute
 	/wipe            reset your data to a brand-new player
+	/pass <PassId>   toggle a game pass on/off (DoubleCoins, AutoServe, ExtraPetSlots, VipTruck)
 
 	Requires the place to use TextChatService (the default for new places).
 ]]
@@ -19,6 +20,7 @@ local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
 
 local GameConfig = require(game:GetService("ReplicatedStorage").Shared.Data.GameConfig)
+local Products = require(game:GetService("ReplicatedStorage").Shared.Data.Products)
 
 local DataService = require(script.Parent.DataService)
 
@@ -102,7 +104,18 @@ function DevCommandsService.Start()
 		print(`[Dev] {player.Name}'s data was reset`)
 	end)
 
-	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /rep <stars>, /skipday, /wipe")
+	addCommand("pass", function(player, argument)
+		local data = DataService.getData(player)
+		if data == nil or argument == nil or Products.GamePasses[argument] == nil then
+			print("[Dev] Usage: /pass <PassId>. Pass ids are the keys in Shared/Data/Products.GamePasses")
+			return
+		end
+		local owned = not data.OwnedPasses[argument]
+		DataService.set(player, { "OwnedPasses", argument }, if owned then true else nil)
+		print(`[Dev] {player.Name}: {argument} -> {if owned then "owned" else "not owned"}`)
+	end)
+
+	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /rep <stars>, /skipday, /wipe, /pass <id>")
 end
 
 return DevCommandsService

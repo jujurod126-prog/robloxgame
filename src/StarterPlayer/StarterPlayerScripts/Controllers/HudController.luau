@@ -4,8 +4,11 @@
 	The always-visible HUD, built with UILib + Theme:
 	  * top left: Coins and Gems with count-up and floating "+X"
 	  * top center: neighborhood name and 5-star Reputation
-	  * right side: menu buttons (Shop, Pets, Flavors, Quests, Rebirth, Daily, Settings)
+	  * right side: menu buttons (Shop, Pets, Flavors, Quests, Rebirth, Daily, Store, Settings)
 	    with red notification dots - HudController.setDot(name, visible)
+	  * a "Friend bonus" chip under the location while a friend is in the server
+	Other controllers can find HUD pieces: getCoinTarget() (coin fly-to target),
+	getMenuButton(window) (tutorial arrows).
 	  (the bottom-center cone / combo strip is OrderBarController)
 	Buttons open windows through WindowManager; windows not built yet say "Coming soon".
 ]]
@@ -45,6 +48,7 @@ local MENU = {
 	{ Window = "Quests", Text = "Quests", Style = "Secondary" },
 	{ Window = "Rebirth", Text = "Rebirth", Style = "Pink" },
 	{ Window = "Daily", Text = "Daily", Style = "Primary" },
+	{ Window = "Store", Text = "Store", Style = "Blue" },
 	{ Window = "Settings", Text = "Settings", Style = "Secondary" },
 }
 
@@ -52,6 +56,18 @@ local HudController = {}
 
 local gui: ScreenGui
 local dots: { [string]: GuiObject } = {}
+local menuButtons: { [string]: GuiButton } = {}
+local coinTarget: GuiObject? = nil
+
+-- The Coins counter's icon (where flying coins should land).
+function HudController.getCoinTarget(): GuiObject?
+	return coinTarget
+end
+
+-- The menu button that opens a window, e.g. "Shop".
+function HudController.getMenuButton(window: string): GuiButton?
+	return menuButtons[window]
+end
 
 -- Shows or hides the red dot on a menu button (something claimable / affordable).
 function HudController.setDot(window: string, visible: boolean)
@@ -92,6 +108,10 @@ local function createCounter(parent: Instance, name: string, icon: string, color
 	shown.Changed:Connect(function(value: number)
 		amount.Text = NumberFormat.short(math.floor(value + 0.5))
 	end)
+
+	if name == "Coins" then
+		coinTarget = badge
+	end
 
 	local current: number? = nil
 	local countUp: Tween? = nil
@@ -190,6 +210,30 @@ local function createLocationBadge()
 	DataController.observe("Reputation", function(rating: number)
 		stars.Text = starText(rating or 0)
 	end)
+
+	-- Friend bonus chip (EconomyService sets the FriendBonus attribute).
+	local chip = UILib.createFrame(gui, {
+		Name = "FriendBonus",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.115),
+		Size = UDim2.fromScale(0.16, 0.04),
+		BackgroundColor3 = Colors.Green,
+		Visible = false,
+	})
+	UILib.addCorner(chip, Theme.Sizes.CornerPill)
+	UILib.addStroke(chip, Theme.Sizes.OutlineThin)
+	UILib.addSizeLimit(chip, Vector2.new(130, 24), Vector2.new(220, 34))
+	local chipLabel = UILib.createLabel(chip, {
+		Size = UDim2.fromScale(0.9, 0.8),
+		Position = UDim2.fromScale(0.05, 0.1),
+		Text = `Friend bonus +{math.floor(GameConfig.Social.FriendCoinBonus * 100 + 0.5)}%`,
+	})
+	UILib.outlinedText(chipLabel)
+	local function updateChip()
+		chip.Visible = player:GetAttribute("FriendBonus") == true
+	end
+	player:GetAttributeChangedSignal("FriendBonus"):Connect(updateChip)
+	updateChip()
 end
 
 -- ===== Menu buttons =====
@@ -207,7 +251,7 @@ local function createMenu()
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.Padding = UDim.new(0.015, 0)
+	layout.Padding = UDim.new(0.01, 0)
 	layout.Parent = column
 
 	for index, entry in MENU do
@@ -216,7 +260,7 @@ local function createMenu()
 			Text = entry.Text,
 			Style = entry.Style,
 			LayoutOrder = index,
-			Size = UDim2.fromScale(1, 0.13),
+			Size = UDim2.fromScale(1, 0.115),
 			OnClick = function()
 				if WindowManager.isRegistered(entry.Window) then
 					WindowManager.toggle(entry.Window)
@@ -241,6 +285,7 @@ local function createMenu()
 		})
 		UILib.addAspect(dot, 1)
 		dots[entry.Window] = dot
+		menuButtons[entry.Window] = button
 	end
 end
 
