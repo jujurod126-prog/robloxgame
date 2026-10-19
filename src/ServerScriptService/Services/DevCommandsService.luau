@@ -6,6 +6,7 @@
 	/data            print your saved data to the Output window
 	/coins <amount>  add Coins (negative to remove)
 	/gems <amount>   add Gems
+	/rep <stars>     set your Reputation (1 - 5), to test special customers
 	/wipe            reset your data to a brand-new player
 
 	Requires the place to use TextChatService (the default for new places).
@@ -15,6 +16,8 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
+
+local GameConfig = require(game:GetService("ReplicatedStorage").Shared.Data.GameConfig)
 
 local DataService = require(script.Parent.DataService)
 
@@ -67,12 +70,26 @@ function DevCommandsService.Start()
 		end
 	end)
 
+	addCommand("rep", function(player, argument)
+		local stars = tonumber(argument)
+		if stars and stars == stars then
+			local config = GameConfig.Reputation
+			print(
+				`[Dev] {player.Name} Reputation -> {DataService.set(
+					player,
+					{ "Reputation" },
+					math.clamp(stars, config.Min, config.Max)
+				)}`
+			)
+		end
+	end)
+
 	addCommand("wipe", function(player)
 		DataService.resetData(player)
 		print(`[Dev] {player.Name}'s data was reset`)
 	end)
 
-	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /wipe")
+	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /rep <stars>, /wipe")
 end
 
 return DevCommandsService

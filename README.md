@@ -92,6 +92,7 @@ These only work in Studio and are typed into chat:
 | `/data`          | Print your saved data to the Output      |
 | `/coins <n>`     | Add n Coins (negative to remove)          |
 | `/gems <n>`      | Add n Gems                                |
+| `/rep <stars>`   | Set your Reputation (1-5) to test special customers |
 | `/wipe`          | Reset your data to a brand-new player     |
 
 ## Art (sprite sheets)
