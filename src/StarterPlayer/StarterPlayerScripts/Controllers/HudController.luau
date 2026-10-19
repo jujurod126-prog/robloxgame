@@ -1,12 +1,13 @@
 --!strict
 --[[
-	HudController (Stage 2: basic HUD)
-	  * top left: Coins and Gems counters with a count-up animation and "+X" pops
-	  * bottom center: what's on your cone ("Cone 1/2")
-	  * top center: short toast messages from the server (Notify remote)
-
-	Stage 3 rebuilds this on top of UILib + Theme with the full glossy style
-	and the right-side menu buttons. Colors here are temporary.
+	HudController
+	The always-visible HUD, built with UILib + Theme:
+	  * top left: Coins and Gems with count-up and floating "+X"
+	  * top center: neighborhood name and 5-star Reputation
+	  * right side: menu buttons (Shop, Pets, Flavors, Quests, Rebirth, Daily, Settings)
+	    with red notification dots - HudController.setDot(name, visible)
+	  * bottom center: cone contents
+	Buttons open windows through WindowManager; windows not built yet say "Coming soon".
 ]]
 
 local Players = game:GetService("Players")
@@ -15,125 +16,101 @@ local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage.Shared
 local Assets = require(Shared.Modules.Assets)
+local GameConfig = require(Shared.Data.GameConfig)
+local Neighborhoods = require(Shared.Data.Neighborhoods)
 local NumberFormat = require(Shared.Modules.NumberFormat)
-local Remotes = require(Shared.Modules.Remotes)
+local ShopRules = require(Shared.Modules.ShopRules)
+
+local UI = script.Parent.Parent.UI
+local Theme = require(UI.Theme)
+local UILib = require(UI.UILib)
+local WindowManager = require(UI.WindowManager)
 
 local DataController = require(script.Parent.DataController)
+local NotificationController = require(script.Parent.NotificationController)
 
 local player = Players.LocalPlayer
+local Colors = Theme.Colors
 
-local COLORS = {
-	Panel = Color3.fromRGB(255, 250, 240),
-	Outline = Color3.fromRGB(70, 45, 60),
-	Text = Color3.fromRGB(70, 45, 60),
-	Coin = Color3.fromRGB(255, 200, 60),
-	Gem = Color3.fromRGB(120, 200, 255),
-	Gain = Color3.fromRGB(90, 200, 90),
-	Error = Color3.fromRGB(235, 80, 90),
+-- Right-side menu, top to bottom. Window = the WindowManager name it opens.
+local MENU = {
+	{ Window = "Shop", Text = "Shop", Style = "Primary" },
+	{ Window = "Pets", Text = "Pets", Style = "Pink" },
+	{ Window = "Flavors", Text = "Flavors", Style = "Blue" },
+	{ Window = "Quests", Text = "Quests", Style = "Secondary" },
+	{ Window = "Rebirth", Text = "Rebirth", Style = "Pink" },
+	{ Window = "Daily", Text = "Daily", Style = "Primary" },
+	{ Window = "Settings", Text = "Settings", Style = "Secondary" },
 }
-local FONT = Enum.Font.FredokaOne
-local COUNT_UP_TIME = 0.5
-local TOAST_SECONDS = 2.5
 
 local HudController = {}
 
 local gui: ScreenGui
+local dots: { [string]: GuiObject } = {}
 
-local function addCorner(parent: GuiObject, scale: number)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(scale, 0)
-	corner.Parent = parent
-end
-
-local function addStroke(parent: GuiObject, thickness: number)
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = thickness
-	stroke.Color = COLORS.Outline
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Parent = parent
-end
-
-local function makeLabel(parent: Instance, props: { [string]: any }): TextLabel
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Font = FONT
-	label.TextColor3 = COLORS.Text
-	label.TextScaled = true
-	for key, value in props do
-		(label :: any)[key] = value
+-- Shows or hides the red dot on a menu button (something claimable / affordable).
+function HudController.setDot(window: string, visible: boolean)
+	local dot = dots[window]
+	if dot then
+		dot.Visible = visible
 	end
-	label.Parent = parent
-	return label
 end
 
--- A currency row: round icon on the left, animated number on the right.
+-- ===== Currencies =====
+
 local function createCounter(parent: Instance, name: string, icon: string, color: Color3, order: number)
-	local frame = Instance.new("Frame")
-	frame.Name = name
-	frame.LayoutOrder = order
-	frame.Size = UDim2.fromScale(1, 0.46)
-	frame.BackgroundColor3 = COLORS.Panel
-	addCorner(frame, 0.5)
-	addStroke(frame, 3)
-	frame.Parent = parent
+	local outer, inner = UILib.createPanel(parent, {
+		Name = name,
+		LayoutOrder = order,
+		Size = UDim2.fromScale(1, 0.45),
+	}, Theme.Sizes.CornerPill)
 
-	local badge = Instance.new("ImageLabel")
-	badge.Name = "Icon"
-	badge.Size = UDim2.fromScale(1, 1.15)
-	badge.Position = UDim2.fromScale(0, 0.5)
-	badge.AnchorPoint = Vector2.new(0.25, 0.5)
-	badge.BackgroundColor3 = color
-	badge.BackgroundTransparency = if Assets.isPlaceholder(icon) then 0 else 1
-	badge.Image = if Assets.isPlaceholder(icon) then "" else icon
-	local aspect = Instance.new("UIAspectRatioConstraint")
-	aspect.Parent = badge
-	addCorner(badge, 0.5)
-	if Assets.isPlaceholder(icon) then
-		addStroke(badge, 3)
-	end
-	badge.Parent = frame
+	local badge = UILib.createIcon(outer, icon, color, nil, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.02, 0.5),
+		Size = UDim2.fromScale(1.3, 1.3),
+		ZIndex = 2,
+	})
+	UILib.addAspect(badge, 1)
 
-	local amount = makeLabel(frame, {
+	local amount = UILib.createLabel(inner, {
 		Name = "Amount",
-		Size = UDim2.fromScale(0.68, 0.8),
-		Position = UDim2.fromScale(0.27, 0.1),
+		Position = UDim2.fromScale(0.24, 0.12),
+		Size = UDim2.fromScale(0.72, 0.76),
 		TextXAlignment = Enum.TextXAlignment.Left,
+		Font = Theme.Fonts.Number,
 		Text = "0",
 	})
 
-	-- Count-up: tween a NumberValue and show its value as it changes.
 	local shown = Instance.new("NumberValue")
-	shown.Parent = frame
+	shown.Parent = outer
 	shown.Changed:Connect(function(value: number)
 		amount.Text = NumberFormat.short(math.floor(value + 0.5))
 	end)
 
 	local current: number? = nil
-	local tween: Tween? = nil
+	local countUp: Tween? = nil
 	return function(newValue: number)
-		if current == nil then
-			shown.Value = newValue
-		else
-			if tween then
-				tween:Cancel()
+		if current ~= nil and newValue ~= current then
+			if countUp then
+				countUp:Cancel()
 			end
-			tween =
-				TweenService:Create(shown, TweenInfo.new(COUNT_UP_TIME, Enum.EasingStyle.Quad), { Value = newValue });
-			(tween :: Tween):Play()
+			countUp = TweenService:Create(shown, Theme.Motion.CountUp, { Value = newValue });
+			(countUp :: Tween):Play()
 
 			local gained = newValue - (current :: number)
 			if gained > 0 then
-				local pop = makeLabel(frame, {
+				local pop = UILib.createLabel(outer, {
 					Name = "Pop",
-					Size = UDim2.fromScale(0.6, 0.7),
-					Position = UDim2.fromScale(1.05, 0.15),
+					Position = UDim2.fromScale(1.04, 0.1),
+					Size = UDim2.fromScale(0.6, 0.8),
 					TextXAlignment = Enum.TextXAlignment.Left,
-					TextColor3 = COLORS.Gain,
-					TextStrokeTransparency = 0.4,
 					Text = "+" .. NumberFormat.short(gained),
 				})
+				UILib.outlinedText(pop)
+				pop.TextColor3 = Colors.Green
 				local rise = TweenService:Create(pop, TweenInfo.new(0.9, Enum.EasingStyle.Quad), {
-					Position = UDim2.fromScale(1.05, -0.6),
+					Position = UDim2.fromScale(1.04, -0.7),
 					TextTransparency = 1,
 					TextStrokeTransparency = 1,
 				})
@@ -142,54 +119,142 @@ local function createCounter(parent: Instance, name: string, icon: string, color
 				end)
 				rise:Play()
 			end
+		else
+			shown.Value = newValue
 		end
 		current = newValue
 	end
 end
 
 local function createCurrencies()
-	local holder = Instance.new("Frame")
-	holder.Name = "Currencies"
-	holder.BackgroundTransparency = 1
-	holder.Position = UDim2.fromScale(0.02, 0.02)
-	holder.Size = UDim2.fromScale(0.18, 0.15)
-	local sizeLimit = Instance.new("UISizeConstraint")
-	sizeLimit.MinSize = Vector2.new(140, 80)
-	sizeLimit.MaxSize = Vector2.new(240, 120)
-	sizeLimit.Parent = holder
+	local holder = UILib.createFrame(gui, {
+		Name = "Currencies",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0.035, 0.03),
+		Size = UDim2.fromScale(0.19, 0.16),
+	})
+	UILib.addSizeLimit(holder, Vector2.new(150, 84), Vector2.new(260, 130))
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding = UDim.new(0.08, 0)
+	layout.Padding = UDim.new(0.1, 0)
 	layout.Parent = holder
-	holder.Parent = gui
 
-	local setCoins = createCounter(holder, "Coins", Assets.ICON_COIN, COLORS.Coin, 1)
-	local setGems = createCounter(holder, "Gems", Assets.ICON_GEM, COLORS.Gem, 2)
-	DataController.observe("Coins", setCoins)
-	DataController.observe("Gems", setGems)
+	DataController.observe("Coins", createCounter(holder, "Coins", Assets.ICON_COIN, Colors.Coin, 1))
+	DataController.observe("Gems", createCounter(holder, "Gems", Assets.ICON_GEM, Colors.Gem, 2))
 end
 
-local function createConeDisplay()
-	local frame = Instance.new("Frame")
-	frame.Name = "Cone"
-	frame.AnchorPoint = Vector2.new(0.5, 1)
-	frame.Position = UDim2.fromScale(0.5, 0.97)
-	frame.Size = UDim2.fromScale(0.2, 0.06)
-	frame.BackgroundColor3 = COLORS.Panel
-	addCorner(frame, 0.5)
-	addStroke(frame, 3)
-	local sizeLimit = Instance.new("UISizeConstraint")
-	sizeLimit.MinSize = Vector2.new(150, 36)
-	sizeLimit.MaxSize = Vector2.new(260, 54)
-	sizeLimit.Parent = frame
-	frame.Parent = gui
+-- ===== Neighborhood + Reputation =====
 
-	local label = makeLabel(frame, {
-		Size = UDim2.fromScale(0.9, 0.75),
-		Position = UDim2.fromScale(0.05, 0.125),
-		Text = "Cone 0/1",
+local function starText(rating: number): string
+	local full = math.clamp(math.floor(rating + 0.5), 0, 5)
+	return string.rep("★", full) .. string.rep("☆", 5 - full)
+end
+
+local function createLocationBadge()
+	local outer, inner = UILib.createPanel(gui, {
+		Name = "Location",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0.015),
+		Size = UDim2.fromScale(0.24, 0.09),
+	})
+	UILib.addSizeLimit(outer, Vector2.new(170, 48), Vector2.new(300, 74))
+
+	local name = UILib.createLabel(inner, {
+		Name = "Neighborhood",
+		Position = UDim2.fromScale(0.05, 0.04),
+		Size = UDim2.fromScale(0.9, 0.5),
+	})
+	local stars = UILib.createLabel(inner, {
+		Name = "Stars",
+		Position = UDim2.fromScale(0.1, 0.52),
+		Size = UDim2.fromScale(0.8, 0.44),
+		TextColor3 = Colors.Coin,
+		TextStrokeColor3 = Colors.Outline,
+		TextStrokeTransparency = 0,
 	})
 
+	-- Stage 5 sets the "Neighborhood" player attribute when you travel.
+	local function updateName()
+		local id = (player:GetAttribute("Neighborhood") :: string?) or GameConfig.Starting.Neighborhood
+		local neighborhood = Neighborhoods[id]
+		name.Text = if neighborhood then neighborhood.DisplayName else id
+	end
+	player:GetAttributeChangedSignal("Neighborhood"):Connect(updateName)
+	updateName()
+
+	DataController.observe("Reputation", function(rating: number)
+		stars.Text = starText(rating or 0)
+	end)
+end
+
+-- ===== Menu buttons =====
+
+local function createMenu()
+	local column = UILib.createFrame(gui, {
+		Name = "Menu",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.fromScale(0.985, 0.47),
+		Size = UDim2.fromScale(0.075, 0.66),
+	})
+	UILib.addSizeLimit(column, Vector2.new(52, 330), Vector2.new(86, 640))
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Padding = UDim.new(0.015, 0)
+	layout.Parent = column
+
+	for index, entry in MENU do
+		local button = UILib.createButton(column, {
+			Name = entry.Window,
+			Text = entry.Text,
+			Style = entry.Style,
+			LayoutOrder = index,
+			Size = UDim2.fromScale(1, 0.13),
+			OnClick = function()
+				if WindowManager.isRegistered(entry.Window) then
+					WindowManager.toggle(entry.Window)
+				else
+					NotificationController.toast(`{entry.Text} is coming in a later update!`, "Info")
+				end
+			end,
+		})
+		UILib.addAspect(button, 1)
+		local corner = button:FindFirstChildOfClass("UICorner")
+		if corner then
+			corner.CornerRadius = UDim.new(0.3, 0)
+		end
+
+		local dot = UILib.createIcon(button, "NotificationDot", Colors.Cherry, nil, {
+			Name = "Dot",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.9, 0.1),
+			Size = UDim2.fromScale(0.34, 0.34),
+			Visible = false,
+			ZIndex = 3,
+		})
+		UILib.addAspect(dot, 1)
+		dots[entry.Window] = dot
+	end
+end
+
+-- ===== Cone =====
+
+local function createConeDisplay()
+	local outer, inner = UILib.createPanel(gui, {
+		Name = "Cone",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.fromScale(0.5, 0.97),
+		Size = UDim2.fromScale(0.2, 0.075),
+	}, Theme.Sizes.CornerPill)
+	UILib.addSizeLimit(outer, Vector2.new(150, 42), Vector2.new(260, 60))
+
+	local label = UILib.createLabel(inner, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.9, 0.7),
+	})
 	local function update()
 		local scoops = (player:GetAttribute("ConeScoops") :: number?) or 0
 		local capacity = (player:GetAttribute("ConeCapacity") :: number?) or 1
@@ -200,54 +265,33 @@ local function createConeDisplay()
 	update()
 end
 
-local function createToast()
-	local label = makeLabel(gui, {
-		Name = "Toast",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, 0.02),
-		Size = UDim2.fromScale(0.5, 0.05),
-		TextColor3 = Color3.new(1, 1, 1),
-		TextStrokeColor3 = COLORS.Outline,
-		TextTransparency = 1,
-		TextStrokeTransparency = 1,
-		Text = "",
-	})
-	local sizeLimit = Instance.new("UISizeConstraint")
-	sizeLimit.MinSize = Vector2.new(260, 26)
-	sizeLimit.MaxSize = Vector2.new(640, 40)
-	sizeLimit.Parent = label
+-- ===== Dots =====
 
-	local fade: Tween? = nil
-	Remotes.event("Notify").OnClientEvent:Connect(function(message: string, kind: string)
-		if fade then
-			fade:Cancel()
+local function watchShopDot()
+	local function update()
+		local data = DataController.getData()
+		HudController.setDot("Shop", data ~= nil and ShopRules.hasAffordable(data))
+	end
+	DataController.Changed:Connect(function(path: { any })
+		if #path == 0 or path[1] == "Coins" or path[1] == "Truck" or path[1] == "Rebirths" then
+			update()
 		end
-		label.Text = message
-		label.TextColor3 = if kind == "Error" then COLORS.Error else Color3.new(1, 1, 1)
-		label.TextTransparency = 0
-		label.TextStrokeTransparency = 0
-		fade = TweenService:Create(
-			label,
-			TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, TOAST_SECONDS),
-			{ TextTransparency = 1, TextStrokeTransparency = 1 }
-		);
-		(fade :: Tween):Play()
 	end)
+	DataController.waitForData()
+	update()
 end
 
 function HudController.Init()
-	gui = Instance.new("ScreenGui")
-	gui.Name = "Hud"
-	gui.ResetOnSpawn = false
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets -- stay clear of Roblox's top bar and notches
+	gui = UILib.createScreenGui("Hud", Theme.Layers.Hud)
 	gui.Parent = player:WaitForChild("PlayerGui")
 end
 
 function HudController.Start()
 	createCurrencies()
+	createLocationBadge()
+	createMenu()
 	createConeDisplay()
-	createToast()
+	task.spawn(watchShopDot)
 end
 
 return HudController

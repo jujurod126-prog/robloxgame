@@ -8,7 +8,6 @@
 ]]
 
 local Shared = script.Parent.Parent
-local Assets = require(Shared.Modules.Assets)
 local GameData = require(Shared.Types.GameData)
 local TableUtil = require(Shared.Modules.TableUtil)
 
@@ -23,7 +22,7 @@ local Upgrades: { [string]: GameData.UpgradeDef } = {
 		CostGrowth = 1.6,
 		Values = { 1.0, 0.9, 0.8, 0.72, 0.65, 0.58, 0.52, 0.47, 0.42, 0.38 },
 		ValueFormat = "Seconds",
-		Icon = Assets.ICON_UPGRADE_SCOOP_SPEED,
+		Icon = "UpgradeScoopSpeed",
 	},
 	MoveSpeed = {
 		Id = "MoveSpeed",
@@ -35,7 +34,7 @@ local Upgrades: { [string]: GameData.UpgradeDef } = {
 		CostGrowth = 1.55,
 		Values = { 16, 17, 18, 19, 20, 21, 22, 23, 24, 26 }, -- Humanoid.WalkSpeed
 		ValueFormat = "Number",
-		Icon = Assets.ICON_UPGRADE_MOVE_SPEED,
+		Icon = "UpgradeMoveSpeed",
 	},
 	Storage = {
 		Id = "Storage",
@@ -47,7 +46,7 @@ local Upgrades: { [string]: GameData.UpgradeDef } = {
 		CostGrowth = 1.7,
 		Values = { 1, 2, 2, 3, 3, 4, 4, 5, 5, 6 },
 		ValueFormat = "Number",
-		Icon = Assets.ICON_UPGRADE_STORAGE,
+		Icon = "UpgradeStorage",
 	},
 	TipBonus = {
 		Id = "TipBonus",
@@ -59,7 +58,7 @@ local Upgrades: { [string]: GameData.UpgradeDef } = {
 		CostGrowth = 1.5,
 		Values = { 0, 0.05, 0.1, 0.15, 0.2, 0.27, 0.34, 0.42, 0.5, 0.6 },
 		ValueFormat = "Percent",
-		Icon = Assets.ICON_UPGRADE_TIP_BONUS,
+		Icon = "UpgradeTipBonus",
 	},
 	ServingCapacity = {
 		Id = "ServingCapacity",
@@ -70,8 +69,8 @@ local Upgrades: { [string]: GameData.UpgradeDef } = {
 		BaseCost = 150,
 		CostGrowth = 1.8,
 		Values = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 5 }, -- added to the truck's BaseServingCapacity
-		ValueFormat = "Number",
-		Icon = Assets.ICON_UPGRADE_SERVING_CAPACITY,
+		ValueFormat = "Bonus",
+		Icon = "UpgradeServingCapacity",
 	},
 }
 

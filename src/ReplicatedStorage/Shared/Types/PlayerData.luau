@@ -13,8 +13,6 @@
 	  2. ServerScriptService/Modules/DataMigrations.luau (bump the version, add a migration)
 ]]
 
-local GameData = require(script.Parent.GameData)
-
 export type PetVariant = "Normal" | "Golden"
 
 export type PetInstance = {
@@ -43,7 +41,7 @@ export type PlayerData = {
 	Reputation: number, -- star rating, GameConfig.Reputation.Min .. Max
 	Truck: {
 		Tier: number, -- index into Shared/Data/Trucks by Tier
-		Upgrades: { [GameData.UpgradeStatId]: number }, -- stat -> level (starts at 1)
+		Upgrades: { [string]: number }, -- upgrade id (Shared/Data/Upgrades) -> level, starts at 1
 		Equipped: { -- equipped cosmetic id per kind
 			Paint: string,
 			Awning: string,

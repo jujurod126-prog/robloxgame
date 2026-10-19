@@ -6,7 +6,6 @@
 ]]
 
 local Shared = script.Parent.Parent
-local Assets = require(Shared.Modules.Assets)
 local GameData = require(Shared.Types.GameData)
 local TableUtil = require(Shared.Modules.TableUtil)
 
@@ -26,7 +25,7 @@ local Eggs: { [string]: GameData.EggDef } = {
 			{ PetId = "ConeCat", Weight = 5 },
 			{ PetId = "CherryChick", Weight = 2 },
 		},
-		Icon = Assets.ICON_EGG_BASIC,
+		Icon = "EggBasic",
 	},
 	Rainbow = {
 		Id = "Rainbow",
@@ -44,7 +43,7 @@ local Eggs: { [string]: GameData.EggDef } = {
 			{ PetId = "MarshmallowGhost", Weight = 4 },
 			{ PetId = "GummyBear", Weight = 1 },
 		},
-		Icon = Assets.ICON_EGG_RAINBOW,
+		Icon = "EggRainbow",
 	},
 	Legendary = {
 		Id = "Legendary",
@@ -61,7 +60,7 @@ local Eggs: { [string]: GameData.EggDef } = {
 			{ PetId = "SprinkleDragon", Weight = 7 },
 			{ PetId = "GalaxyUnicorn", Weight = 1 },
 		},
-		Icon = Assets.ICON_EGG_LEGENDARY,
+		Icon = "EggLegendary",
 	},
 }
 

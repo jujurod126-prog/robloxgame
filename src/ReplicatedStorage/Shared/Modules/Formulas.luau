@@ -17,7 +17,7 @@ local Formulas = {}
 	currentLevel is the level the player has now (1 = never upgraded).
 	Returns nil when the stat is already maxed.
 ]]
-function Formulas.upgradeCost(statId: GameData.UpgradeStatId, currentLevel: number): number?
+function Formulas.upgradeCost(statId: string, currentLevel: number): number?
 	local upgrade = Upgrades[statId]
 	assert(upgrade, `Unknown upgrade {statId}`)
 	if currentLevel >= upgrade.MaxLevel then
@@ -27,7 +27,7 @@ function Formulas.upgradeCost(statId: GameData.UpgradeStatId, currentLevel: numb
 end
 
 -- The stat's value at a level (clamped to 1..MaxLevel).
-function Formulas.upgradeValue(statId: GameData.UpgradeStatId, level: number): number
+function Formulas.upgradeValue(statId: string, level: number): number
 	local upgrade = Upgrades[statId]
 	assert(upgrade, `Unknown upgrade {statId}`)
 	return upgrade.Values[math.clamp(level, 1, upgrade.MaxLevel)]

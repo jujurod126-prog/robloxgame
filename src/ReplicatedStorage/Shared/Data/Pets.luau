@@ -20,7 +20,7 @@ local Pets: { [string]: GameData.PetDef } = {
 		Rarity = "Common",
 		BoostStat = "CoinMultiplier",
 		BoostAmount = 0.05,
-		Icon = Assets.ICON_PET_PENGUIN,
+		Icon = "PetPenguin",
 	},
 	Cow = {
 		Id = "Cow",
@@ -29,7 +29,7 @@ local Pets: { [string]: GameData.PetDef } = {
 		Rarity = "Common",
 		BoostStat = "MoveSpeed",
 		BoostAmount = 0.05,
-		Icon = Assets.ICON_PET_COW,
+		Icon = "PetCow",
 	},
 	WafflePup = {
 		Id = "WafflePup",
@@ -48,7 +48,7 @@ local Pets: { [string]: GameData.PetDef } = {
 		Rarity = "Uncommon",
 		BoostStat = "CoinMultiplier",
 		BoostAmount = 0.1,
-		Icon = Assets.ICON_PET_POLAR_BEAR,
+		Icon = "PetPolarBear",
 	},
 	ConeCat = {
 		Id = "ConeCat",
@@ -57,7 +57,7 @@ local Pets: { [string]: GameData.PetDef } = {
 		Rarity = "Uncommon",
 		BoostStat = "TipBonus",
 		BoostAmount = 0.1,
-		Icon = Assets.ICON_PET_CONE_CAT,
+		Icon = "PetConeCat",
 	},
 	SundaeSeal = {
 		Id = "SundaeSeal",
@@ -95,7 +95,7 @@ local Pets: { [string]: GameData.PetDef } = {
 		Rarity = "Epic",
 		BoostStat = "TipBonus",
 		BoostAmount = 0.35,
-		Icon = Assets.ICON_PET_MARSHMALLOW_GHOST,
+		Icon = "PetMarshmallowGhost",
 	},
 	GummyBear = {
 		Id = "GummyBear",
@@ -114,7 +114,7 @@ local Pets: { [string]: GameData.PetDef } = {
 		Rarity = "Legendary",
 		BoostStat = "CoinMultiplier",
 		BoostAmount = 0.75,
-		Icon = Assets.ICON_PET_SPRINKLE_DRAGON,
+		Icon = "PetSprinkleDragon",
 	},
 	-- Mythic
 	GalaxyUnicorn = {

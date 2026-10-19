@@ -124,6 +124,7 @@ local GameConfig = {
 	RateLimits = {
 		Default = { Calls = 10, WindowSeconds = 1 },
 		GetSnapshot = { Calls = 3, WindowSeconds = 10 },
+		Purchase = { Calls = 6, WindowSeconds = 1 },
 	},
 }
 

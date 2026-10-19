@@ -163,6 +163,10 @@ local function rebuildTruck(player: Player)
 	old:Destroy()
 	trucks[player] = buildTruck(player, data, lot)
 	TruckService.TruckSpawned:Fire(player, trucks[player])
+	-- A bigger truck could overlap the player, so put them behind the new one.
+	if player.Character then
+		task.spawn(moveCharacterToTruck, player, player.Character)
+	end
 end
 
 local function onPlayerRemoving(player: Player)

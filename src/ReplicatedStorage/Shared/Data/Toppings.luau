@@ -7,7 +7,6 @@
 ]]
 
 local Shared = script.Parent.Parent
-local Assets = require(Shared.Modules.Assets)
 local GameData = require(Shared.Types.GameData)
 local TableUtil = require(Shared.Modules.TableUtil)
 
@@ -19,7 +18,7 @@ local Toppings: { [string]: GameData.ToppingDef } = {
 		UnlockCost = 100,
 		ValueMultiplier = 1.1,
 		Color = Color3.fromRGB(255, 120, 180),
-		Icon = Assets.ICON_TOPPING_SPRINKLES,
+		Icon = "ToppingSprinkles",
 		Tags = { "Sweet" },
 	},
 	ChocolateSyrup = {
@@ -29,7 +28,7 @@ local Toppings: { [string]: GameData.ToppingDef } = {
 		UnlockCost = 600,
 		ValueMultiplier = 1.2,
 		Color = Color3.fromRGB(90, 50, 30),
-		Icon = Assets.ICON_TOPPING_CHOCOLATE_SYRUP,
+		Icon = "ToppingChocolateSyrup",
 		Tags = { "Sweet", "Chocolate" },
 	},
 	Cherry = {
@@ -39,7 +38,7 @@ local Toppings: { [string]: GameData.ToppingDef } = {
 		UnlockCost = 3000,
 		ValueMultiplier = 1.3,
 		Color = Color3.fromRGB(220, 30, 50),
-		Icon = Assets.ICON_TOPPING_CHERRY,
+		Icon = "ToppingCherry",
 		Tags = { "Fruity" },
 	},
 	WhippedCream = {
@@ -49,7 +48,7 @@ local Toppings: { [string]: GameData.ToppingDef } = {
 		UnlockCost = 15000,
 		ValueMultiplier = 1.4,
 		Color = Color3.fromRGB(255, 255, 250),
-		Icon = Assets.ICON_TOPPING_WHIPPED_CREAM,
+		Icon = "ToppingWhippedCream",
 		Tags = { "Sweet" },
 	},
 	CrushedCookies = {
@@ -59,7 +58,7 @@ local Toppings: { [string]: GameData.ToppingDef } = {
 		UnlockCost = 60000,
 		ValueMultiplier = 1.5,
 		Color = Color3.fromRGB(60, 45, 40),
-		Icon = Assets.ICON_TOPPING_CRUSHED_COOKIES,
+		Icon = "ToppingCrushedCookies",
 		Tags = { "Chocolate" },
 	},
 	HotFudge = {
@@ -69,7 +68,7 @@ local Toppings: { [string]: GameData.ToppingDef } = {
 		UnlockCost = 250000,
 		ValueMultiplier = 1.6,
 		Color = Color3.fromRGB(70, 35, 20),
-		Icon = Assets.ICON_TOPPING_HOT_FUDGE,
+		Icon = "ToppingChocolateSyrup", -- no Hot Fudge art yet
 		Tags = { "Warm", "Chocolate" },
 	},
 	GoldFlakes = {
@@ -79,7 +78,7 @@ local Toppings: { [string]: GameData.ToppingDef } = {
 		UnlockCost = 1500000,
 		ValueMultiplier = 2,
 		Color = Color3.fromRGB(255, 215, 70),
-		Icon = Assets.ICON_TOPPING_GOLD_FLAKES,
+		Icon = "ToppingGoldFlakes",
 		Tags = { "Fancy" },
 	},
 }

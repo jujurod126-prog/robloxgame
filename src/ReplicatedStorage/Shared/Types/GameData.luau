@@ -5,6 +5,12 @@
 	entries with these so typos and missing fields show up in the type checker.
 ]]
 
+--[[
+	Icon fields hold EITHER a sprite name from the sprite sheets (e.g. "PetPenguin",
+	see Modules/SpriteRects) OR an asset id from Modules/Assets for art not on a sheet.
+	UI code shows both through UILib.createIcon.
+]]
+
 export type RarityId = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic"
 
 export type CurrencyId = "Coins" | "Gems" | "RebirthTokens"
@@ -81,7 +87,7 @@ export type UpgradeDef = {
 	BaseCost: number, -- cost to go from level 1 to level 2
 	CostGrowth: number, -- each next level costs this much more (1.4 - 1.8)
 	Values: { number }, -- Values[level] = the stat at that level
-	ValueFormat: "Number" | "Seconds" | "Percent",
+	ValueFormat: "Number" | "Seconds" | "Percent" | "Bonus", -- Bonus shows as "+2"
 	Icon: string,
 }
 

@@ -9,7 +9,6 @@
 ]]
 
 local Shared = script.Parent.Parent
-local Assets = require(Shared.Modules.Assets)
 local GameData = require(Shared.Types.GameData)
 local TableUtil = require(Shared.Modules.TableUtil)
 
@@ -29,7 +28,7 @@ local Trucks: { GameData.TruckDef } = {
 		AutoServeBurst = nil,
 		Hovers = false,
 		AutoCollectTips = false,
-		Icon = Assets.ICON_TRUCK_PUSHCART,
+		Icon = "TruckPushcart",
 	},
 	{
 		Id = "MiniVan",
@@ -46,7 +45,7 @@ local Trucks: { GameData.TruckDef } = {
 		AutoServeBurst = nil,
 		Hovers = false,
 		AutoCollectTips = false,
-		Icon = Assets.ICON_TRUCK_MINI_VAN,
+		Icon = "TruckMiniVan",
 	},
 	{
 		Id = "ClassicTruck",
@@ -63,7 +62,7 @@ local Trucks: { GameData.TruckDef } = {
 		AutoServeBurst = nil,
 		Hovers = false,
 		AutoCollectTips = false,
-		Icon = Assets.ICON_TRUCK_CLASSIC,
+		Icon = "TruckClassic",
 	},
 	{
 		Id = "DeluxeTruck",
@@ -80,7 +79,7 @@ local Trucks: { GameData.TruckDef } = {
 		AutoServeBurst = { Duration = 5, Interval = 60 },
 		Hovers = false,
 		AutoCollectTips = false,
-		Icon = Assets.ICON_TRUCK_DELUXE,
+		Icon = "TruckDeluxe",
 	},
 	{
 		Id = "RocketTruck",
@@ -97,7 +96,7 @@ local Trucks: { GameData.TruckDef } = {
 		AutoServeBurst = { Duration = 6, Interval = 60 },
 		Hovers = false,
 		AutoCollectTips = false,
-		Icon = Assets.ICON_TRUCK_ROCKET,
+		Icon = "TruckRocket",
 	},
 	{
 		Id = "UfoTruck",
@@ -114,7 +113,7 @@ local Trucks: { GameData.TruckDef } = {
 		AutoServeBurst = { Duration = 8, Interval = 60 },
 		Hovers = true,
 		AutoCollectTips = true,
-		Icon = Assets.ICON_TRUCK_UFO,
+		Icon = "TruckUfo",
 	},
 }
 

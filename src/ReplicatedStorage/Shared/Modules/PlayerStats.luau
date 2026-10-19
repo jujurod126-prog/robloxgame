@@ -18,7 +18,7 @@ type PlayerData = PlayerDataTypes.PlayerData
 
 local PlayerStats = {}
 
-local function level(data: PlayerData, statId: GameData.UpgradeStatId): number
+local function level(data: PlayerData, statId: string): number
 	return data.Truck.Upgrades[statId] or 1
 end
 

@@ -41,8 +41,10 @@ DataController.Changed:Connect(function(path, value) ... end)
 | `DataPatch` | RemoteEvent | Server → Client | `seq: number, path: {string \| number}, value: any` | — | — | 1 |
 | `OrderResult` | RemoteEvent | Server → Client | `position: Vector3, coins: number, correct: boolean` (a customer just paid; coins already include multipliers) | — | — | 2 |
 | `Notify` | RemoteEvent | Server → Client | `message: string, kind: "Info" \| "Error"` (short toast text) | — | — | 2 |
+| `BuyUpgrade` | RemoteFunction | Client → Server | `statId: string` (a key of `Shared/Data/Upgrades`) | `{ Ok: boolean, Message: string }` | 6 per second (shared with BuyTruckTier) | 3 |
+| `BuyTruckTier` | RemoteFunction | Client → Server | `tier: number` (only the next tier is accepted) | `{ Ok: boolean, Message: string }` | 6 per second | 3 |
 
-*Later stages add rows here, for example `BuyUpgrade(statId)`,
+*Later stages add rows here, for example
 `UnlockFlavor(flavorId)` and `HatchEgg(eggId, count)`.*
 
 ## World interactions (no remotes)
@@ -124,6 +126,14 @@ Settings           { MusicVolume 0-1, SfxVolume 0-1, ShowTips, ShowPopups }
 Tutorial           { Completed, Step }
 Purchases.ReceiptIds { purchaseId } (server bookkeeping; the UI ignores it)
 ```
+
+## Purchases
+
+The client never sends a price. `BuyUpgrade` and `BuyTruckTier` name *what* to buy; the
+server looks up the price and requirements in `Shared/Modules/ShopRules.luau`, takes the
+Coins through `EconomyService.trySpend`, and changes the data. The UI uses the same
+`ShopRules` functions for the prices, locked states and the Shop button's red dot, so what's
+shown always matches what's charged. The returned `Message` is shown as a toast.
 
 ## Static game data
 

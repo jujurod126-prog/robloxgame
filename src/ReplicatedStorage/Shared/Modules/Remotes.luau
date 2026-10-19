@@ -16,7 +16,7 @@ local FOLDER_NAME = "Remotes"
 local WAIT_TIMEOUT = 30
 
 export type EventName = "DataPatch" | "OrderResult" | "Notify"
-export type FunctionName = "GetSnapshot"
+export type FunctionName = "GetSnapshot" | "BuyUpgrade" | "BuyTruckTier"
 
 -- Add new names to BOTH the type above and the list below.
 local EVENT_NAMES: { EventName } = {
@@ -27,7 +27,12 @@ local EVENT_NAMES: { EventName } = {
 
 local FUNCTION_NAMES: { FunctionName } = {
 	"GetSnapshot", -- Client -> Server: () -> { Seq: number, Data: PlayerData }?
+	"BuyUpgrade", -- Client -> Server: (statId: string) -> PurchaseResult
+	"BuyTruckTier", -- Client -> Server: (tier: number) -> PurchaseResult
 }
+
+-- What purchase RemoteFunctions return. Message is shown to the player.
+export type PurchaseResult = { Ok: boolean, Message: string }
 
 local Remotes = {}
 

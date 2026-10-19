@@ -47,7 +47,8 @@ src/
     Packages/  ProfileStore (vendored, unmodified, see third_party/)
   StarterPlayer/StarterPlayerScripts/
     Main.client.luau   boots every controller
-    Controllers/       DataController (client data copy) and stubs for later stages
+    Controllers/       DataController (client data copy), HUD, shop, notifications, ...
+    UI/                Theme (colors/fonts/sizes), UILib (UI builders), WindowManager, Cleaner
 docs/
   UI_CONTRACT.md   remotes, their arguments, the PlayerData shape and how it syncs
   BALANCE.md       upgrade costs and time-to-afford table
