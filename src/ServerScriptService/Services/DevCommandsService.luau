@@ -10,6 +10,9 @@
 	/skipday         pretend a day passed: daily reward claimable, new quests within a minute
 	/wipe            reset your data to a brand-new player
 	/pass <PassId>   toggle a game pass on/off (DoubleCoins, AutoServe, ExtraPetSlots, VipTruck)
+	/rush            start a Rush Hour now
+	/weather <kind>  set the weather: Clear, Rain or Heatwave
+	/time <hour>     jump the day/night clock to an hour (0-24)
 
 	Requires the place to use TextChatService (the default for new places).
 ]]
@@ -23,6 +26,7 @@ local GameConfig = require(game:GetService("ReplicatedStorage").Shared.Data.Game
 local Products = require(game:GetService("ReplicatedStorage").Shared.Data.Products)
 
 local DataService = require(script.Parent.DataService)
+local EventService = require(script.Parent.EventService)
 
 local DevCommandsService = {}
 
@@ -115,7 +119,32 @@ function DevCommandsService.Start()
 		print(`[Dev] {player.Name}: {argument} -> {if owned then "owned" else "not owned"}`)
 	end)
 
-	print("[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /rep <stars>, /skipday, /wipe, /pass <id>")
+	addCommand("rush", function()
+		EventService.forceRushHour()
+		print("[Dev] Rush Hour started")
+	end)
+
+	addCommand("weather", function(_, argument)
+		if argument == "Clear" or argument == "Rain" or argument == "Heatwave" then
+			EventService.forceWeather(argument)
+			print(`[Dev] Weather -> {argument}`)
+		else
+			print("[Dev] Usage: /weather Clear | Rain | Heatwave")
+		end
+	end)
+
+	addCommand("time", function(_, argument)
+		local hour = tonumber(argument)
+		if hour and hour == hour then
+			EventService.setClock(hour)
+			print(`[Dev] Clock -> {hour}`)
+		end
+	end)
+
+	print(
+		"[Dev] Studio commands ready: /data, /coins <n>, /gems <n>, /rep <stars>, /skipday, /wipe, /pass <id>,"
+			.. " /rush, /weather <kind>, /time <hour>"
+	)
 end
 
 return DevCommandsService

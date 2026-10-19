@@ -46,10 +46,12 @@ end
 
 -- ===== Day / night =====
 
+local clockStarted = os.clock()
+local clockStartHour = START_HOUR
+
 local function runClock()
-	local started = os.clock()
 	while true do
-		local hour = (START_HOUR + (os.clock() - started) / world.DayNightCycleSeconds * 24) % 24
+		local hour = (clockStartHour + (os.clock() - clockStarted) / world.DayNightCycleSeconds * 24) % 24
 		Workspace:SetAttribute("ClockTime", hour)
 		Workspace:SetAttribute("TimeOfDay", timeOfDay(hour))
 		task.wait(CLOCK_UPDATE_SECONDS)
@@ -94,24 +96,57 @@ local function joinRushHour(player: Player)
 	EconomyService.awardGems(player, rush.GemBonus)
 end
 
+local function startRushHour()
+	rushHourEndsAt = Workspace:GetServerTimeNow() + rush.DurationSeconds
+	Workspace:SetAttribute("RushHourEnds", rushHourEndsAt)
+	banner(
+		`RUSH HOUR! Customers x{rush.SpawnRateMultiplier} and +{rush.GemBonus} Gems!`,
+		rush.DurationSeconds,
+		"RushHour"
+	)
+	for _, player in Players:GetPlayers() do
+		joinRushHour(player)
+	end
+end
+
 local function runRushHour()
 	while true do
 		task.wait(random:NextNumber(rush.IntervalMinSeconds, rush.IntervalMaxSeconds))
-		rushHourEndsAt = Workspace:GetServerTimeNow() + rush.DurationSeconds
-		Workspace:SetAttribute("RushHourEnds", rushHourEndsAt)
-		banner(
-			`RUSH HOUR! Customers x{rush.SpawnRateMultiplier} and +{rush.GemBonus} Gems!`,
-			rush.DurationSeconds,
-			"RushHour"
-		)
-		for _, player in Players:GetPlayers() do
-			joinRushHour(player)
-		end
+		startRushHour()
 		task.wait(rush.DurationSeconds)
 	end
 end
 
 -- ===== Public API =====
+
+-- Starts a Rush Hour right now (Studio test command /rush).
+function EventService.forceRushHour()
+	if Workspace:GetServerTimeNow() >= rushHourEndsAt then
+		startRushHour()
+	end
+end
+
+-- Sets the weather right now (Studio test command /weather). It clears after its normal duration.
+function EventService.forceWeather(weather: "Clear" | "Rain" | "Heatwave")
+	Workspace:SetAttribute("Weather", weather)
+	if weather ~= "Clear" then
+		local config = world.Weather[weather]
+		banner(`Weather: {weather}!`, 4, "Weather")
+		task.delay(config.DurationSeconds, function()
+			if Workspace:GetAttribute("Weather") == weather then
+				Workspace:SetAttribute("Weather", "Clear")
+			end
+		end)
+	end
+end
+
+-- Jumps the day/night clock to an hour (Studio test command /time).
+function EventService.setClock(hour: number)
+	clockStartHour = math.clamp(hour, 0, 24) % 24
+	clockStarted = os.clock()
+	Workspace:SetAttribute("ClockTime", clockStartHour)
+	Workspace:SetAttribute("TimeOfDay", timeOfDay(clockStartHour))
+end
 
 -- True while Rush Hour is running for this player.
 function EventService.isRushHour(player: Player): boolean

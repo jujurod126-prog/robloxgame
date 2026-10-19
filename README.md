@@ -99,6 +99,9 @@ These only work in Studio and are typed into chat:
 | `/skipday`       | Pretend a day passed (daily reward ready, new quests within a minute) |
 | `/wipe`          | Reset your data to a brand-new player     |
 | `/pass <id>`     | Toggle a game pass on/off for testing: `DoubleCoins`, `AutoServe`, `ExtraPetSlots`, `VipTruck` |
+| `/rush`          | Start a Rush Hour now                     |
+| `/weather <kind>`| `Clear`, `Rain` or `Heatwave`             |
+| `/time <hour>`   | Jump the day/night clock, e.g. `/time 19` for sunset |
 
 ## Art (sprite sheets)
 
