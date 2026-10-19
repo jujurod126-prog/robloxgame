@@ -15,3 +15,6 @@ roblox.yml
 Thumbs.db
 .vscode/
 .idea/
+
+# Local Rojo binary (downloaded by hand on Windows)
+rojo.exe

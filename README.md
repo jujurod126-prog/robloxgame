@@ -29,6 +29,16 @@ stylua src            # format
 Files on disk sync into Studio live. Edit code here, not in Studio, or your Studio changes
 will be overwritten.
 
+## Auto-updating code (Windows)
+
+Clone the repo with Git once, then double-click **`dev.bat`**. It starts Rojo and pulls the
+latest code from GitHub every 30 seconds, so new changes appear in Studio on their own.
+Code changes don't affect a game that's already running in Play mode, so press Stop and Play
+again after an update.
+
+Don't edit files in this folder by hand, or the automatic update will stop (it tells you
+when that happens).
+
 ## Project layout
 
 ```text
